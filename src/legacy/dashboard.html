@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgriTrace - Dashboard</title>
+    <link rel="stylesheet" href="styled.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Dashboard-only pieces. Shared components live in public/styled.css. */
+        .pending-item {
+            display: flex;
+            gap: 14px;
+            padding: 14px;
+            background: var(--bg-main);
+            border: 1px solid var(--border-color);
+            border-left: 3px solid var(--warning);
+            border-radius: var(--radius-sm);
+            margin-bottom: 10px;
+        }
+        .pending-status { font-size: 0.74rem; color: var(--warning); font-weight: 600; margin-top: 6px; display: flex; align-items: center; gap: 6px; }
+        .pending-item img, .pending-item > div:first-child { flex-shrink: 0; }
+
+        .cart-item-actions { display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 14px; }
+        .delete-btn { color: var(--danger); cursor: pointer; transition: transform 0.15s; padding: 4px; }
+        .delete-btn:hover { transform: scale(1.15); }
+
+        .post-modal .post-user { margin-bottom: 4px; }
+        #feed-dynamic .post + .post { margin-top: 0; }
+
+        @media (max-width: 640px) {
+            .post-modal .post-input-area > div { flex-wrap: wrap; }
+            .post-modal .post-input-area > div > input { min-width: 0; }
+            .pending-item { flex-direction: row; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container" id="app-container">
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <div class="logo" onclick="switchView('feed')">
+                <i class="fa-solid fa-leaf"></i> AgriTrace
+            </div>
+
+            <div class="nav-section">
+                <a href="javascript:void(0)" onclick="switchView('feed')" class="nav-item active" data-view="feed"><i class="fa-solid fa-house"></i> Home</a>
+                <a href="javascript:void(0)" onclick="switchView('market')" class="nav-item" data-view="market"><i class="fa-solid fa-store"></i> Marketplace</a>
+                <a href="javascript:void(0)" onclick="switchView('farmer-hub')" class="nav-item" data-view="farmer-hub"><i class="fa-solid fa-tractor"></i> Farmer Hub</a>
+                <a href="javascript:void(0)" onclick="switchView('analytics')" class="nav-item" data-view="analytics"><i class="fa-solid fa-chart-line"></i> Analytics</a>
+            </div>
+
+            <!-- PENDINGS SECTION -->
+            <div class="nav-section">
+                <div class="nav-title">Pendings</div>
+                <a href="javascript:void(0)" onclick="openPendingModal()" class="nav-item"><i class="fa-solid fa-file-circle-exclamation"></i> Pending Posts <span class="badge hidden" id="pending-count" style="background: var(--warning);">0</span></a>
+            </div>
+
+            <!-- ACCOUNT SECTION -->
+            <div class="nav-section">
+                <div class="nav-title">Account</div>
+                <a href="javascript:void(0)" onclick="openMessenger()" class="nav-item"><i class="fa-solid fa-envelope"></i> Messages <span class="badge hidden" id="messages-badge">0</span></a>
+                <a href="javascript:void(0)" onclick="openNotifications()" class="nav-item"><i class="fa-solid fa-bell"></i> Notifications <span class="badge hidden" id="notif-badge" style="background: var(--danger);">0</span></a>
+                <a href="javascript:void(0)" onclick="switchView('orders')" class="nav-item" data-view="orders"><i class="fa-solid fa-box"></i> My Orders</a>
+                <a href="javascript:void(0)" onclick="switchView('saved')" class="nav-item" data-view="saved"><i class="fa-solid fa-heart"></i> Saved Items</a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-title">System</div>
+                <a href="/admin" class="nav-item admin-only hidden"><i class="fa-solid fa-database"></i> Database</a>
+                <a href="javascript:void(0)" onclick="openModal('settings-modal')" class="nav-item"><i class="fa-solid fa-gear"></i> Settings</a>
+                <a href="/cloud" class="nav-item admin-only hidden"><i class="fa-solid fa-cloud"></i> Cloud Storage</a>
+                <a href="javascript:void(0)" onclick="switchView('help')" class="nav-item" data-view="help"><i class="fa-solid fa-circle-question"></i> Help Center</a>
+                <a href="javascript:void(0)" onclick="signOut()" class="nav-item logout"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+            </div>
+
+            <!-- PROFILE BOTTOM -->
+            <div class="profile-bottom" onclick="navigateToProfile()">
+                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80" alt="User" id="sidebar-profile-pic">
+                <div class="profile-info">
+                    <h4 id="sidebar-profile-name">Loading...</h4>
+                    <p>View Profile</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="main-content">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+                    <div class="search-bar" style="flex: 1;">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="search" id="global-search" placeholder="Search products, farmers, or locations..." oninput="onSearch(this.value)">
+                    </div>
+                </div>
+                <div class="topbar-right">
+                    <div class="cart-icon-wrapper" onclick="openCart()" title="Shopping cart">
+                        <i class="fa-solid fa-cart-shopping"></i>
+                        <span class="badge" id="cart-badge">0</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- FEED VIEW -->
+            <div id="view-feed" class="view-section active">
+                <div class="create-post-trigger" onclick="openPostModal()">
+                    <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80" alt="User" id="post-avatar">
+                    <input type="text" id="post-placeholder" placeholder="What's on your mind?" readonly>
+                </div>
+
+                <div id="feed-list" style="display: contents;"></div>
+
+                            </div>
+
+            <!-- MARKETPLACE VIEW -->
+            <div id="view-market" class="view-section">
+                <div class="market-top-bar">
+                    <h2 style="color: var(--text-main);">Marketplace</h2>
+                    <select id="market-sort" class="sort-dropdown" onchange="sortProducts()">
+                        <option value="newest">Sort by: Newest</option>
+                        <option value="price_asc">Price: Low to High</option>
+                        <option value="price_desc">Price: High to Low</option>
+                    </select>
+                </div>
+
+                <div class="category-bar">
+                    <button class="cat-btn active" onclick="filterMarket('All', this)">All Products</button>
+                    <button class="cat-btn" onclick="filterMarket('Fruits', this)">Fruits</button>
+                    <button class="cat-btn" onclick="filterMarket('Vegetables', this)">Vegetables</button>
+                    <button class="cat-btn" onclick="filterMarket('Meats', this)">Meats</button>
+                    <button class="cat-btn" onclick="filterMarket('Grains', this)">Grains</button>
+                    <button class="cat-btn" onclick="filterMarket('Dairy', this)">Dairy</button>
+                </div>
+
+                <div class="market-grid-layout" id="marketplace-container"></div>
+            </div>
+
+            <!-- FARMER HUB VIEW -->
+            <div id="view-farmer-hub" class="view-section">
+                <h2 style="color: var(--text-main); margin-bottom: 10px;">Farmers</h2>
+
+                <div class="category-bar">
+                    <button class="cat-btn active" onclick="filterFarmers('All', this)">All Farmers</button>
+                    <button class="cat-btn" onclick="filterFarmers('Following', this)">Following</button>
+                </div>
+
+                <div class="farmer-grid" id="farmer-container"></div>
+            </div>
+
+            <!-- MY ORDERS -->
+            <div id="view-orders" class="view-section">
+                <h2 style="color: var(--text-main);">My Orders</h2>
+                <div class="stack-list" id="orders-container"></div>
+            </div>
+
+            <!-- SAVED ITEMS -->
+            <div id="view-saved" class="view-section">
+                <h2 style="color: var(--text-main);">Saved Items</h2>
+                <div class="market-grid-layout" id="saved-container"></div>
+            </div>
+
+            <!-- ANALYTICS -->
+            <div id="view-analytics" class="view-section">
+                <h2 style="color: var(--text-main);">Analytics</h2>
+                <div class="stat-tiles" id="analytics-tiles"></div>
+                <div class="widget">
+                    <div class="widget-header"><h3>Listings by Category</h3></div>
+                    <div id="analytics-bars"></div>
+                </div>
+                <div class="widget" style="margin-top: 15px;">
+                    <div class="widget-header"><h3>My Product Performance</h3></div>
+                    <div id="analytics-products"></div>
+                </div>
+            </div>
+
+            <!-- HELP CENTER -->
+            <div id="view-help" class="view-section">
+                <h2 style="color: var(--text-main);">Help Center</h2>
+                <div class="help-item">
+                    <h4>How do I sell a product?</h4>
+                    <p>Click the "What's on your mind?" box, choose "Sell Product", fill in the details and post. An admin reviews it before it appears in the Marketplace.</p>
+                </div>
+                <div class="help-item">
+                    <h4>Where can I see my pending posts?</h4>
+                    <p>Open "Pending Posts" in the sidebar. Posts stay there until an administrator approves or deletes them.</p>
+                </div>
+                <div class="help-item">
+                    <h4>How do I check out?</h4>
+                    <p>Add products to your cart, tick the items you want, and press Checkout. Your order appears under My Orders.</p>
+                </div>
+                <div class="help-item">
+                    <h4>Need more help?</h4>
+                    <p>Send a complaint or report using the form below. Your account name and email are attached automatically.</p>
+                </div>
+                <form id="complaint-form" class="help-item">
+                    <h3 style="color: var(--text-main); margin-bottom: 12px;">Send a complaint</h3>
+                    <div class="input-group">
+                        <label for="complaint-name">Your name</label>
+                        <input id="complaint-name" type="text" readonly>
+                    </div>
+                    <div class="input-group">
+                        <label for="complaint-email">Your email</label>
+                        <input id="complaint-email" type="email" readonly>
+                    </div>
+                    <div class="input-group">
+                        <label for="complaint-message">Report or complaint</label>
+                        <textarea id="complaint-message" rows="5" maxlength="5000" required placeholder="Describe the issue you want us to review."></textarea>
+                    </div>
+                    <button class="btn-primary" type="submit" id="complaint-submit">Submit complaint</button>
+                </form>
+            </div>
+        </main>
+
+        <!-- RIGHT SIDEBAR -->
+        <aside class="right-sidebar" id="right-sidebar">
+            <div class="widget" style="background: linear-gradient(135deg, var(--bg-surface), var(--bg-main)); border: 1px solid var(--primary);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h3 style="font-size: 1rem; color: var(--text-main);">Your Location</h3>
+                        <p id="home-location-label" style="font-size: 0.8rem; color: var(--text-muted);">Loading...</p>
+                    </div>
+                    <i class="fa-solid fa-location-dot" style="font-size: 2rem; color: var(--primary);"></i>
+                </div>
+                <div id="home-map" style="width: 100%; height: 240px; position: relative; border-radius: 10px; margin-top: 10px; overflow: hidden;"></div>
+                <p id="home-map-hint" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 8px;">Showing products nearby.</p>
+            </div>
+
+            <div class="widget">
+                <div class="widget-header"><h3>Live Farm Stats</h3></div>
+                <div class="widget-list-item">
+                    <div class="stat-icon" style="width: 35px; height: 35px; font-size: 1rem; margin-right: 10px;"><i class="fa-solid fa-seedling"></i></div>
+                    <div class="widget-list-item-info"><h4 id="stat-listings">0 Active</h4><p>Active Listings</p></div>
+                </div>
+                <div class="widget-list-item">
+                    <div class="stat-icon" style="width: 35px; height: 35px; font-size: 1rem; margin-right: 10px; color: var(--blue); background: rgba(59,130,246,0.1);"><i class="fa-solid fa-shield-halved"></i></div>
+                    <div class="widget-list-item-info"><h4 id="stat-verified">0 Verified</h4><p>Registered Farmers</p></div>
+                </div>
+            </div>
+
+            <div class="widget">
+                <div class="widget-header"><h3>Trending Topics</h3></div>
+                <div id="trending-list"></div>
+            </div>
+
+            <div class="widget">
+                <div class="widget-header"><h3>Suggested Farmers</h3></div>
+                <div id="suggested-list"></div>
+            </div>
+            <div class="widget">
+                <div class="widget-header"><h3>Popular Farmers</h3></div>
+                <div id="popular-farmers-list"></div>
+            </div>
+            <div class="widget">
+                <div class="widget-header"><h3>Latest Safe Products</h3></div>
+                <div id="latest-products-list"></div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- MODALS -->
+
+    <!-- PENDING POSTS MODAL -->
+    <div class="modal-overlay" id="pending-posts-modal">
+        <div class="modal" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>Pending Posts</h2>
+                <button class="close-btn" onclick="closeModal('pending-posts-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 15px;">These posts are currently waiting for Admin approval.</p>
+            <div id="pending-list"></div>
+            <div style="text-align: center; margin-top: 20px;">
+                <p style="font-size: 0.8rem; color: var(--text-muted);">Admin usually reviews posts within 24 hours.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- CREATE POST / SELL MODAL -->
+    <div class="modal-overlay" id="post-modal">
+        <div class="modal post-modal">
+            <div class="modal-header">
+                <h2>Create Post</h2>
+                <button class="close-btn" onclick="closeModal('post-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="post-user">
+                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80" alt="User" id="post-modal-avatar">
+                <div class="post-user-info">
+                    <h4 id="post-modal-name">User</h4>
+                </div>
+            </div>
+            <div class="post-tabs">
+                <button class="post-tab active" data-tab="text" onclick="switchPostTab('text', this)"><i class="fa-solid fa-text-width"></i> Text</button>
+                <button class="post-tab" data-tab="video" onclick="switchPostTab('video', this)"><i class="fa-solid fa-video"></i> Video/Photo</button>
+                <button class="post-tab" data-tab="product" onclick="switchPostTab('product', this)"><i class="fa-solid fa-box"></i> Sell Product</button>
+            </div>
+            <div id="post-area-text" class="post-input-area active">
+                <textarea id="post-text" placeholder="What's on your mind?"></textarea>
+            </div>
+            <div id="post-area-video" class="post-input-area">
+                <div class="file-upload-box" onclick="openFilePicker('video')">
+                    <i class="fa-solid fa-camera"></i>
+                    <p id="video-upload-label">Upload from Device</p>
+                </div>
+                <input type="file" id="file-input-video" accept="image/*,video/*" style="display: none;" onchange="fileSelected(event, 'video')">
+                <textarea id="post-media-desc" placeholder="Describe your media..."></textarea>
+            </div>
+            <div id="post-area-product" class="post-input-area">
+                <input type="text" id="product-name" placeholder="Product Name" maxlength="150">
+                <div style="display: flex; gap: 10px;">
+                    <input type="number" id="product-price" placeholder="Price (₱)" min="0" step="0.01" style="flex: 1;">
+                    <input type="number" id="product-stock" placeholder="Stock" min="1" step="1" style="flex: 1;">
+                    <input type="text" id="product-unit" value="kg" placeholder="Unit" maxlength="30" style="flex: 1;">
+                </div>
+                <select id="product-category">
+                    <option value="Fruits">Fruits</option>
+                    <option value="Vegetables">Vegetables</option>
+                    <option value="Meats">Meats</option>
+                    <option value="Grains">Grains</option>
+                    <option value="Dairy">Dairy</option>
+                </select>
+                <textarea id="product-description" placeholder="Describe your product..."></textarea>
+                <div class="file-upload-box" onclick="openFilePicker('product')" style="padding: 15px;">
+                    <i class="fa-solid fa-image"></i>
+                    <p id="product-upload-label">Add Product Photo</p>
+                </div>
+                <input type="file" id="file-input-product" accept="image/*" multiple style="display: none;" onchange="fileSelected(event, 'product')">
+            </div>
+            <div class="post-actions">
+                <button class="btn-primary" id="post-submit" onclick="submitPost()" style="width: 100%;">Post</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- EDIT POST MODAL -->
+    <div class="modal-overlay" id="edit-post-modal">
+        <div class="modal" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-pen-to-square"></i> Edit Post</h2>
+                <button class="close-btn" onclick="closeModal('edit-post-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="post-user" style="margin-bottom: 12px;">
+                <img id="edit-post-avatar" src="" alt="User">
+                <div class="post-user-info"><h4 id="edit-post-name"></h4><span>Edit your post</span></div>
+            </div>
+            <textarea id="edit-post-text" maxlength="5000" placeholder="What's on your mind?"></textarea>
+            <div class="post-actions" style="display: flex; gap: 10px; margin-top: 12px;">
+                <button type="button" class="btn-muted" id="edit-post-remove" onclick="removeEditingPost()" style="flex: 1; color: var(--danger); border: 1px solid var(--danger);"><i class="fa-solid fa-trash"></i> Remove Post</button>
+                <button type="button" class="btn-primary" id="edit-post-submit" onclick="submitEditPost()" style="flex: 1;">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PRODUCT DETAILS MODAL -->
+    <div class="modal-overlay" id="product-details-modal">
+        <div class="modal" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>Product Details</h2>
+                <button class="close-btn" onclick="closeModal('product-details-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <img id="detail-image" src="" alt="Product" data-view-image tabindex="0" role="button" style="width: 100%; height: 250px; object-fit: cover; border-radius: 8px; margin-bottom: 15px;">
+            <h2 id="detail-name" style="color: var(--text-main); font-size: 1.5rem; margin-bottom: 5px;"></h2>
+            <p id="detail-price" style="color: var(--primary); font-size: 1.2rem; font-weight: bold; margin-bottom: 15px;"></p>
+            <p id="detail-rating" class="product-rating" style="margin-bottom: 10px;"></p>
+            <p id="detail-farmer" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 5px;"><i class="fa-solid fa-tractor"></i> Sold by: <span></span></p>
+            <p id="detail-distance" style="color: var(--primary); font-size: 0.9rem; font-weight: bold; margin-bottom: 15px;"><i class="fa-solid fa-location-dot"></i> <span></span></p>
+            <div style="background: var(--bg-main); padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <h4 style="color: var(--text-main); margin-bottom: 5px;">Description & Stock</h4>
+                <p id="detail-desc" style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.5;"></p>
+            </div>
+            <button type="button" class="btn-muted" id="detail-reviews-btn" data-action="detail-reviews"><i class="fa-solid fa-star"></i> Reviews &amp; Ratings</button>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn-muted" id="detail-save-btn" style="flex: 1;" onclick="toggleSaveFromDetails()"><i class="fa-regular fa-heart"></i> Save</button>
+                <button class="btn-primary" id="detail-cart-btn" style="flex: 2;" onclick="handleDetailProductAction()">Add to Cart</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="product-sales-modal" role="dialog" aria-modal="true" aria-labelledby="product-sales-title">
+        <div class="modal" style="max-width: 760px;">
+            <div class="modal-header">
+                <h2 id="product-sales-title">Product sales</h2>
+                <button class="close-btn" type="button" aria-label="Close sales" onclick="closeModal('product-sales-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="product-sales-content">Loading sales...</div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="product-reviews-modal" role="dialog" aria-modal="true" aria-labelledby="product-reviews-title">
+        <div class="modal" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 id="product-reviews-title">Product Reviews</h2>
+                <button class="close-btn" type="button" aria-label="Close reviews" onclick="closeModal('product-reviews-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="product-review-summary" class="review-summary">Loading reviews...</div>
+            <div id="product-review-form-container"></div>
+            <div id="product-review-list" class="product-review-list"></div>
+        </div>
+    </div>
+
+    <!-- SHOPPING CART MODAL -->
+    <div class="modal-overlay" id="cart-modal">
+        <div class="modal shopee-cart">
+            <div class="shopee-header">
+                <h2><i class="fa-solid fa-cart-shopping"></i> Shopping Cart</h2>
+                <button class="close-btn" style="color: white;" onclick="closeModal('cart-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="shopee-cart-body" id="cart-items-container"></div>
+            <div class="shopee-footer">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" id="select-all" onchange="toggleSelectAll(this)">
+                    <label for="select-all" style="color: var(--text-main);">Select All</label>
+                </div>
+                <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+                    <div class="total" id="cart-total">Total: ₱0.00</div>
+                    <button class="btn-primary" id="checkout-btn" onclick="checkout()">Checkout</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MESSENGER -->
+    <div class="modal-overlay" id="messenger-modal">
+        <div class="modal messenger-modal">
+            <button class="messenger-close-btn" onclick="closeModal('messenger-modal')"><i class="fa-solid fa-xmark"></i></button>
+            <div class="msg-sidebar">
+                <div class="msg-sidebar-header">
+                    <h2>Chats</h2>
+                    <input type="search" id="msg-search" placeholder="Search users or conversations" oninput="searchMessageUsers(this.value)">
+                    <div class="category-bar" id="msg-filter-bar" style="margin: 10px 0 0; gap: 6px;">
+                        <button type="button" class="cat-btn active" onclick="setMessageFilter('all', this)" style="padding: 6px 10px;">All</button>
+                        <button type="button" class="cat-btn" onclick="setMessageFilter('unread', this)" style="padding: 6px 10px;">Unread</button>
+                        <button type="button" class="cat-btn" onclick="setMessageFilter('following', this)" style="padding: 6px 10px;">Following</button>
+                    </div>
+                </div>
+                <div class="msg-list" id="conv-list"></div>
+            </div>
+            <div class="msg-chat-area">
+                <div class="msg-chat-header">
+                    <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=100&q=80" alt="User" id="chat-header-img">
+                    <div class="msg-chat-header-info">
+                        <h4 id="chat-header-name">Select a conversation</h4>
+                        <span id="chat-header-status"></span>
+                    </div>
+                </div>
+                <div class="msg-history" id="chat-history"></div>
+                <div class="msg-input-area">
+                    <input type="text" placeholder="Aa" id="msg-input" onkeypress="handleMsgEnter(event)">
+                    <button onclick="sendMessage()" aria-label="Send"><i class="fa-solid fa-paper-plane"></i></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NOTIFICATIONS -->
+    <div class="modal-overlay" id="notif-modal">
+        <div class="modal" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2>Notifications</h2>
+                <button class="close-btn" onclick="closeModal('notif-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="notif-list"></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay image-viewer-modal" id="image-viewer-modal" role="dialog" aria-modal="true" aria-label="Image viewer">
+        <div class="image-viewer-content">
+            <button class="close-btn image-viewer-close" type="button" aria-label="Close image viewer" onclick="closeModal('image-viewer-modal')"><i class="fa-solid fa-xmark"></i></button>
+            <img id="image-viewer-image" src="" alt="">
+        </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="modal-overlay settings-modal" id="settings-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button class="close-btn" onclick="closeModal('settings-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="settings-row">
+                <h4>Dark Mode</h4>
+                <label class="switch">
+                    <input type="checkbox" id="darkmode-toggle" onchange="toggleDarkMode()">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="settings-row">
+                <h4>Language</h4>
+                <select id="language-select" onchange="changeLanguage()">
+                    <option value="en">English</option>
+                    <option value="es">Español</option>
+                    <option value="tl">Tagalog</option>
+                </select>
+            </div>
+            <div style="padding-top: 20px; text-align: center;">
+                <button class="btn-primary" onclick="savePreferences()">Save Preferences</button>
+            </div>
+        </div>
+    </div>
+    <script src="agritrace.js"></script>
+    <script src="dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+<title>AgriTrace - Product trace</title>
+<link rel="stylesheet" href="styled.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    body { height: auto; min-height: 100vh; overflow-y: auto; }
+    .trace-page { max-width: 720px; margin: 0 auto; padding: 32px 18px 56px; }
+    .trace-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid var(--border-color); }
+    .trace-brand { color: var(--text-main); font-family: var(--font-display); font-weight: 600; font-size: 1.35rem; display: inline-flex; align-items: center; gap: 10px; }
+    .trace-brand i { color: var(--primary); }
+    .trace-card { background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 20px 22px; margin-bottom: 14px; }
+    .trace-card h3 { font-family: var(--font-ui); font-size: 0.78rem; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border-color); }
+    .trace-row { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid var(--border-color); font-size: 0.92rem; color: var(--text-main); flex-wrap: wrap; }
+    .trace-row:last-child { border-bottom: none; }
+    .trace-row span:first-child { color: var(--text-muted); }
+    .verified { color: var(--primary); font-weight: 600; }
+    .unverified { color: var(--warning); font-weight: 600; }
+    </style>
+<div class="trace-page">
+    <div class="trace-head" style="margin-bottom: 18px;">
+        <div class="trace-brand"><i class="fa-solid fa-leaf"></i> AgriTrace product trace</div>
+        <a href="/dashboard" style="color: var(--primary); font-size: 0.9rem;">Back to dashboard</a>
+    </div>
+    <div id="trace-content"><p style="color: var(--text-muted);">Loading the trace record...</p></div>
+</div>
+<script src="agritrace.js"></script>
+<script src="trace.js"></script>

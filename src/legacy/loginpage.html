@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgriTrace - Login</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+
+        :root {
+            --bg-main: #0f1913;
+            --bg-surface: #162419;
+            --bg-hover: #1e3026;
+            --primary: #74c69d;
+            --primary-hover: #95d9b4;
+            --on-primary: #0f1913;
+            --text-main: #ecf2ea;
+            --text-muted: #9bb0a2;
+            --border-color: #2a4034;
+            --danger: #f0796e;
+            --focus-ring: rgba(116, 198, 157, 0.45);
+            --font-ui: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+            --font-display: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: var(--font-ui); }
+        body { background-color: var(--bg-main); color: var(--text-main); height: 100vh; overflow: hidden; font-size: 0.94rem; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+        a { text-decoration: none; color: inherit; cursor: pointer; }
+        button { cursor: pointer; border: none; outline: none; font-family: inherit; }
+        input, select { outline: none; border: none; font-family: inherit; }
+        :focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+        /* Split layout: a field photograph with the promise, and the sign-in ledger */
+        .login-page { display: flex; height: 100vh; width: 100vw; }
+
+        .login-left {
+            flex: 1.1;
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            display: flex;
+            align-items: flex-end;
+            padding: 64px;
+            transition: background-image 0.5s ease-in-out;
+        }
+        .login-left::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(to top, rgba(15, 25, 19, 0.96) 0%, rgba(15, 25, 19, 0.35) 55%, rgba(15, 25, 19, 0.15) 100%);
+        }
+        .login-quote { position: relative; z-index: 1; max-width: 560px; }
+        .login-quote h2 {
+            font-family: var(--font-display);
+            font-weight: 600;
+            font-size: 2.8rem;
+            line-height: 1.12;
+            letter-spacing: -0.015em;
+            margin-bottom: 18px;
+            color: #fff;
+        }
+        .login-quote p {
+            font-family: var(--font-display);
+            font-size: 1.12rem;
+            color: #d3ddd5;
+            line-height: 1.6;
+            border-left: 2px solid var(--primary);
+            padding-left: 16px;
+        }
+
+        .login-right {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: var(--bg-main);
+            padding: 40px;
+            position: relative;
+        }
+
+        .auth-box {
+            width: 100%;
+            max-width: 468px;
+            background: var(--bg-surface);
+            padding: 40px 36px;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            position: relative;
+            z-index: 1;
+            max-height: 92vh;
+            overflow-y: auto;
+            scrollbar-width: none;
+        }
+        .auth-box::-webkit-scrollbar { display: none; }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 26px;
+            font-family: var(--font-display);
+            font-size: 1.4rem;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            color: var(--text-main);
+        }
+        .logo i { color: var(--primary); font-size: 1.1rem; }
+        .auth-box h2 { font-family: var(--font-display); font-weight: 600; font-size: 1.6rem; margin-bottom: 22px; letter-spacing: -0.01em; }
+
+        /* Form elements */
+        .input-group { margin-bottom: 14px; }
+        .input-group label { display: block; margin-bottom: 6px; color: var(--text-muted); font-size: 0.82rem; font-weight: 500; }
+        .input-group input, .input-group select {
+            width: 100%;
+            background: var(--bg-main);
+            padding: 11px 13px;
+            border-radius: 9px;
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            transition: border-color 0.15s, box-shadow 0.15s;
+            font-size: 0.93rem;
+        }
+        .input-group input:focus, .input-group select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--focus-ring); }
+
+        .form-error {
+            margin-bottom: 16px;
+            padding: 11px 14px;
+            border: 1px solid rgba(240, 121, 110, 0.45);
+            border-left: 3px solid var(--danger);
+            border-radius: 9px;
+            background: rgba(240, 121, 110, 0.08);
+            color: #f7c3bd;
+            font-size: 0.88rem;
+            line-height: 1.5;
+        }
+
+        .form-row { display: flex; gap: 14px; }
+        .form-row .input-group { flex: 1; }
+
+        .auth-btn {
+            width: 100%;
+            padding: 13px;
+            background: var(--primary);
+            color: var(--on-primary);
+            border-radius: 9px;
+            font-size: 0.97rem;
+            font-weight: 600;
+            margin-top: 12px;
+            transition: background-color 0.15s, transform 0.15s;
+        }
+        .auth-btn:hover { background: var(--primary-hover); }
+        .auth-btn:active { transform: translateY(1px); }
+        .auth-btn:disabled { cursor: wait; opacity: 0.75; }
+
+        .social-auth-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+        .social-auth-button {
+            padding: 10px 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 9px;
+            background: transparent;
+            color: var(--text-main);
+            font-weight: 500;
+            font-size: 0.86rem;
+            transition: border-color 0.15s;
+        }
+        .social-auth-button:hover { border-color: var(--primary); }
+        .social-auth-note { text-align: center; color: var(--text-muted); font-size: 0.8rem; margin-top: 10px; }
+
+        .auth-spinner, .auth-loading-spinner {
+            width: 1em;
+            height: 1em;
+            border: 2px solid rgba(15, 25, 19, 0.3);
+            border-top-color: var(--on-primary);
+            border-radius: 50%;
+            display: inline-block;
+            vertical-align: -0.15em;
+            animation: auth-spin 0.7s linear infinite;
+        }
+        .auth-loading {
+            position: fixed;
+            inset: 0;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            background: rgba(15, 25, 19, 0.8);
+            color: var(--text-main);
+            font-weight: 600;
+            backdrop-filter: blur(4px);
+        }
+        .auth-loading-spinner { width: 2.4rem; height: 2.4rem; border-width: 3px; border-color: rgba(116, 198, 157, 0.25); border-top-color: var(--primary); }
+        @keyframes auth-spin { to { transform: rotate(360deg); } }
+
+        .auth-toggle { text-align: center; margin-top: 18px; color: var(--text-muted); font-size: 0.88rem; }
+        .auth-toggle a { color: var(--primary); font-weight: 600; }
+        .auth-toggle a:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+        .hidden { display: none !important; }
+
+        @media (max-width: 900px) {
+            body { overflow-y: auto; height: auto; min-height: 100vh; }
+            .login-page { flex-direction: column; height: auto; min-height: 100vh; }
+            .login-left { display: none; }
+            .login-right { padding: 28px 16px; align-items: flex-start; }
+            .auth-box { max-height: none; overflow: visible; padding: 30px 24px; }
+        }
+        @media (max-width: 520px) {
+            .form-row { flex-direction: column; gap: 0; }
+            .login-quote h2 { font-size: 1.7rem; }
+            .auth-box { padding: 24px 18px; }
+            .logo { margin-bottom: 18px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+        }
+    
+    </style>
+</head>
+<body>
+
+    <div id="auth-loading" class="auth-loading hidden" role="status" aria-live="polite">
+        <span class="auth-loading-spinner" aria-hidden="true"></span>
+        <span id="auth-loading-message">Logging in...</span>
+    </div>
+
+    <div class="login-page">
+        <div class="login-left" id="dynamic-left-panel">
+            <div class="login-quote">
+                <h2 id="quote-title">Cultivating a Better Future.</h2>
+                <p id="quote-text">"Farming is a profession of hope. By connecting directly with consumers, we secure a better future for our families and our land." — Ramon Santos, Rice Farmer</p>
+            </div>
+        </div>
+
+        <div class="login-right">
+            <div class="auth-box">
+                <div class="logo">
+                    <i class="fa-solid fa-leaf"></i> AgriTrace
+                </div>
+                
+                <h2 id="form-title">Welcome Back</h2>
+
+                <!-- Login Form -->
+                <form id="login-form" onsubmit="handleLogin(event)">
+                    <div id="login-error" class="form-error hidden" role="alert" aria-live="assertive" tabindex="-1"></div>
+                    <div class="input-group">
+                        <label>Email Address</label>
+                        <input type="email" id="login-email" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Password</label>
+                        <input type="password" id="login-password" required>
+                    </div>
+                    <div class="input-group hidden" id="login-code-group">
+                        <label>6-digit code sent to your email</label>
+                        <input type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" id="login-code">
+                    </div>
+                    <button type="submit" class="auth-btn" id="login-submit">Login</button>
+                    <div class="social-auth-options">
+                        <button type="button" class="social-auth-button" onclick="startSocialLogin('google', 'login')"><i class="fa-brands fa-google"></i> Continue with Google</button>
+                        <button type="button" class="social-auth-button" onclick="startSocialLogin('facebook', 'login')"><i class="fa-brands fa-facebook"></i> Continue with Facebook</button>
+                    </div>
+                    <div class="auth-toggle">
+                        <a href="javascript:void(0)" onclick="showLoginStep('forgot')">Forgot password?</a>
+                    </div>
+                    <div class="auth-toggle">
+                        Don't have an account? <a href="javascript:void(0)" onclick="toggleAuth('register')">Register here</a>
+                    </div>
+                </form>
+
+                <!-- Forgot password -->
+                <form id="forgot-form" class="hidden" onsubmit="handleForgot(event)">
+                    <div class="input-group">
+                        <label>Email Address</label>
+                        <input type="email" id="forgot-email" required>
+                    </div>
+                    <button type="submit" class="auth-btn">Send reset link</button>
+                    <div class="auth-toggle">
+                        <a href="javascript:void(0)" onclick="showLoginStep('login')">Back to login</a>
+                    </div>
+                </form>
+
+                <!-- New password (opened from the link in the reset email) -->
+                <form id="reset-form" class="hidden" onsubmit="handleReset(event)">
+                    <div class="input-group">
+                        <label>New Password</label>
+                        <input type="password" id="reset-pass" minlength="8" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Confirm New Password</label>
+                        <input type="password" id="reset-cpass" minlength="8" required>
+                    </div>
+                    <button type="submit" class="auth-btn">Set new password</button>
+                </form>
+
+                <!-- Full Registration Form -->
+                <form id="register-form" class="hidden" onsubmit="handleRegister(event)">
+                    <div id="register-error" class="form-error hidden" role="alert" tabindex="-1"></div>
+                    <div class="form-row">
+                        <div class="input-group">
+                            <label>First Name</label>
+                            <input type="text" id="reg-fname" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Middle Name (Opt)</label>
+                            <input type="text" id="reg-mname">
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>Last Name</label>
+                        <input type="text" id="reg-lname" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="input-group">
+                            <label>Age</label>
+                            <input type="number" id="reg-age" required min="18">
+                        </div>
+                        <div class="input-group">
+                            <label>Gender</label>
+                            <select id="reg-gender" required>
+                                <option value="" disabled selected></option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>Address</label>
+                        <input type="text" id="reg-address" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="input-group">
+                            <label>Contact Number</label>
+                            <input type="text" id="reg-contact" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Email Address</label>
+                            <input type="email" id="reg-email" required>
+                        </div>
+                    </div>
+                    <div class="input-group">
+                        <label>User Type</label>
+                        <select id="reg-type">
+                            <option value="Farmer">Farmer</option>
+                            <option value="Business Owner">Business Owner</option>
+                            <option value="Buyer">Buyer</option>
+                            <option value="Retailer">Retailer</option>
+                            <option value="Supplier">Supplier</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="input-group">
+                            <label>Password</label>
+                            <input type="password" id="reg-pass" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Confirm Password</label>
+                            <input type="password" id="reg-cpass" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="auth-btn">Create Account</button>
+                    <div class="social-auth-options">
+                        <button type="button" class="social-auth-button" onclick="startSocialLogin('google', 'register')"><i class="fa-brands fa-google"></i> Register with Google</button>
+                        <button type="button" class="social-auth-button" onclick="startSocialLogin('facebook', 'register')"><i class="fa-brands fa-facebook"></i> Register with Facebook</button>
+                    </div>
+                    <p class="social-auth-note">New accounts still require administrator approval.</p>
+                    <div class="auth-toggle">
+                        Already have an account? <a href="javascript:void(0)" onclick="toggleAuth('login')">Login here</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script src="agritrace.js"></script>
+    <script src="auth.js"></script>
+</body>
+</html>

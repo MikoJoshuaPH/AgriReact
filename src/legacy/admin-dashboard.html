@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgriTrace - Admin Database</title>
+    <link rel="stylesheet" href="styled.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Admin stat strip */
+        .db-header-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px; }
+        .stat-card {
+            background: var(--bg-surface);
+            padding: 16px 18px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            transition: border-color 0.15s, box-shadow 0.15s;
+            cursor: pointer;
+        }
+        .stat-card:hover { border-color: var(--primary); box-shadow: var(--shadow-lg); }
+        .stat-icon { width: 42px; height: 42px; border-radius: 11px; display: flex; justify-content: center; align-items: center; font-size: 1.1rem; flex-shrink: 0; }
+        .stat-info h3 { font-size: 1.45rem; margin-bottom: 0; font-variant-numeric: tabular-nums; }
+        .stat-info p { font-size: 0.72rem; color: var(--text-muted); font-weight: 600; margin-top: 2px; }
+
+        /* Tints for stat icons, derived from the active palette */
+        .color-primary { background: color-mix(in srgb, var(--primary) 15%, transparent); color: var(--primary); }
+        .color-blue { background: color-mix(in srgb, var(--blue) 15%, transparent); color: var(--blue); }
+        .color-warning { background: color-mix(in srgb, var(--warning) 16%, transparent); color: var(--warning); }
+        .color-danger { background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
+        .color-purple { background: color-mix(in srgb, var(--purple) 16%, transparent); color: var(--purple); }
+        .color-cyan { background: color-mix(in srgb, #4fc3d9 16%, transparent); color: #4fc3d9; }
+
+        /* Tables and tabs */
+        .db-tabs { display: flex; gap: 6px; margin-bottom: 18px; border-bottom: 1px solid var(--border-color); padding-bottom: 0; overflow-x: auto; }
+        .db-tab {
+            background: transparent;
+            color: var(--text-muted);
+            padding: 10px 16px;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.88rem;
+            white-space: nowrap;
+            transition: color 0.15s, border-color 0.15s;
+        }
+        .db-tab:hover { color: var(--text-main); }
+        .db-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+        .table-responsive { background: var(--bg-surface); border-radius: var(--radius-md); border: 1px solid var(--border-color); overflow: auto; }
+        .table-responsive table { width: max-content; min-width: 100%; }
+        table { width: 100%; border-collapse: collapse; min-width: 1100px; }
+        th, td { padding: 13px 18px; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 0.84rem; white-space: nowrap; }
+        th { background: var(--bg-main); color: var(--text-muted); font-weight: 600; font-size: 0.72rem; letter-spacing: 0.04em; }
+        tbody tr:hover { background: var(--bg-hover); }
+
+        /* Row actions */
+        .action-btn { padding: 5px 11px; border-radius: 7px; font-size: 0.78rem; margin-right: 5px; cursor: pointer; font-weight: 600; border: none; }
+        .btn-edit { background: color-mix(in srgb, var(--blue) 16%, transparent); color: var(--blue); }
+        .btn-delete { background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger); }
+        .btn-approve { background: color-mix(in srgb, var(--primary) 16%, transparent); color: var(--primary); }
+        .btn-reject { background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger); }
+
+        /* CRUD modal */
+        .crud-modal .modal { max-width: 800px; }
+        .crud-form { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px 16px; }
+        .crud-form .full-width { grid-column: span 3; }
+
+        /* Report cards */
+        .report-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; margin-top: 20px; }
+        .report-card {
+            background: var(--bg-surface);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-color);
+            padding: 22px 20px;
+            text-align: left;
+            transition: border-color 0.15s, box-shadow 0.15s;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 6px;
+        }
+        .report-card:hover { border-color: var(--primary); box-shadow: var(--shadow-lg); }
+        .report-card i { font-size: 1.5rem; margin-bottom: 6px; color: var(--primary); }
+        .report-card h3 { font-size: 1.05rem; margin-bottom: 2px; }
+        .report-card p { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 14px; flex-grow: 1; }
+        .btn-export {
+            width: 100%;
+            padding: 9px;
+            background: transparent;
+            color: var(--text-main);
+            border-radius: var(--radius-sm);
+            font-weight: 600;
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+            font-size: 0.84rem;
+        }
+        .btn-export:hover { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+
+        .view-section { display: none; }
+        .view-section.active { display: block; }
+
+        /* Responsive */
+        @media (max-width: 1180px) {
+            .app-container { height: auto; min-height: 100vh; }
+            body { height: auto; min-height: 100vh; overflow-y: auto; }
+            .sidebar { position: sticky; top: 0; height: 100vh; align-self: start; }
+        }
+        @media (max-width: 1100px) {
+            .db-header-stats { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+        @media (max-width: 900px) {
+            .app-container { grid-template-columns: 1fr !important; }
+            .sidebar { position: fixed; top: 0; left: 0; bottom: 0; width: 280px; max-width: 85vw; height: 100vh; z-index: 1100; transform: translateX(-100%); transition: transform 0.25s ease; }
+            .sidebar.open { transform: translateX(0); }
+            .main-content { overflow: visible; }
+            .crud-form { grid-template-columns: 1fr 1fr; }
+            .crud-form .full-width { grid-column: span 2; }
+        }
+        @media (max-width: 640px) {
+            .main-content { padding: 12px; gap: 14px; }
+            .topbar { flex-wrap: wrap; padding-bottom: 12px; gap: 10px; }
+            .topbar h2 { font-size: 1.2rem !important; }
+            .topbar .btn-primary { width: 100%; }
+            .db-header-stats { gap: 10px; }
+            .stat-card { padding: 12px; gap: 10px; }
+            .stat-info h3 { font-size: 1.1rem; }
+            .stat-icon { width: 36px; height: 36px; font-size: 1rem; }
+            .crud-modal .modal { max-width: none; }
+            .crud-form { grid-template-columns: 1fr; }
+            .crud-form .full-width { grid-column: 1; }
+            .report-grid { grid-template-columns: 1fr; }
+            .db-tab { padding: 8px 12px; font-size: 0.84rem; }
+            th, td { padding: 11px 14px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container" style="grid-template-columns: 280px 1fr;">
+        <aside class="sidebar">
+            <div class="logo" onclick="window.location.href='/dashboard'">
+                <i class="fa-solid fa-leaf"></i> AgriTrace
+            </div>
+            <div class="nav-section">
+                <a href="/dashboard" class="nav-item"><i class="fa-solid fa-house"></i> Dashboard</a>
+                <a href="javascript:void(0)" onclick="switchView('profile-view')" class="nav-item" data-view="profile-view"><i class="fa-solid fa-user"></i> My Profile</a>
+                <a href="javascript:void(0)" onclick="switchView('main-db-view')" class="nav-item active" data-view="main-db-view"><i class="fa-solid fa-database"></i> Admin Database</a>
+                <a href="javascript:void(0)" onclick="switchView('report-view')" class="nav-item" data-view="report-view"><i class="fa-solid fa-file-export"></i> Generate Reports</a>
+                <a href="javascript:void(0)" onclick="switchView('cloud-view')" class="nav-item" data-view="cloud-view"><i class="fa-solid fa-cloud"></i> Cloud Storage</a>
+            </div>
+            <div class="nav-section">
+                <a href="javascript:void(0)" onclick="signOut()" class="nav-item logout"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+            </div>
+            <div class="profile-bottom" onclick="window.location.href='/dashboard'">
+                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80" alt="Admin" id="admin-avatar">
+                <div class="profile-info"><h4 id="admin-name">Admin Panel</h4><p>Return to App</p></div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="topbar">
+                <div class="topbar-left"><button class="menu-toggle" onclick="toggleSidebar()" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button><h2 id="page-title" style="font-size: 1.5rem;">System Overview</h2></div>
+                <button class="btn-primary" onclick="openAddAccount()" id="add-btn"><i class="fa-solid fa-plus"></i> Add New Account</button>
+            </header>
+
+            <!-- MAIN DATABASE VIEW -->
+            <div id="main-db-view" class="view-section active">
+                <!-- COMPREHENSIVE STATISTICS GRID (Interactive) -->
+                <div class="db-header-stats">
+                    <!-- User Stats (Dynamic) -->
+                    <div class="stat-card" onclick="switchTab('accounts', document.querySelectorAll('.db-tab')[0])">
+                        <div class="stat-icon color-primary"><i class="fa-solid fa-users"></i></div>
+                        <div class="stat-info"><h3 id="stat-total-users">0</h3><p>Active Accounts</p></div>
+                    </div>
+                    <div class="stat-card" onclick="switchTab('pending-accounts', document.querySelectorAll('.db-tab')[1])">
+                        <div class="stat-icon color-warning"><i class="fa-solid fa-user-clock"></i></div>
+                        <div class="stat-info"><h3 id="stat-pending-users">0</h3><p>Pending Accounts</p></div>
+                    </div>
+                    <div class="stat-card" onclick="switchTab('pending-posts', document.querySelectorAll('.db-tab')[2])">
+                        <div class="stat-icon color-purple"><i class="fa-solid fa-newspaper"></i></div>
+                        <div class="stat-info"><h3 id="stat-pending-posts">0</h3><p>Pending Posts</p></div>
+                    </div>
+                    <div class="stat-card" onclick="switchTab('reports', document.querySelectorAll('.db-tab')[3])">
+                        <div class="stat-icon color-danger"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                        <div class="stat-info"><h3 id="stat-reports">0</h3><p>Open Reports</p></div>
+                    </div>
+
+                    <!-- Commerce Stats (live from this browser's data) -->
+                    <div class="stat-card">
+                        <div class="stat-icon color-warning"><i class="fa-solid fa-box"></i></div>
+                        <div class="stat-info"><h3 id="stat-products">0</h3><p>Products Listed</p></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon color-primary"><i class="fa-solid fa-truck-fast"></i></div>
+                        <div class="stat-info"><h3 id="stat-orders">0</h3><p>Total Orders</p></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon color-blue"><i class="fa-solid fa-peso-sign"></i></div>
+                        <div class="stat-info"><h3 id="stat-revenue">₱0.00</h3><p>Gross Revenue</p></div>
+                    </div>
+                </div>
+
+                <p class="db-note" style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 15px;"><i class="fa-solid fa-circle-info"></i> Live data from the AgriTrace database. Approvals, moderation and account changes are saved immediately.</p>
+                <!-- UPDATED TABS -->
+                <div class="db-tabs">
+                    <button class="db-tab active" onclick="switchTab('accounts', this)">Users</button>
+                    <button class="db-tab" onclick="switchTab('pending-accounts', this)">Pending Accounts</button>
+                    <button class="db-tab" onclick="switchTab('pending-posts', this)">Pending Posts</button>
+                    <button class="db-tab" onclick="switchTab('reports', this)">User Reports</button>
+                    <button class="db-tab" onclick="switchTab('complaints', this)">Complaints</button>
+                    <button class="db-tab" onclick="switchTab('farms', this)">Farms</button>
+                    <button class="db-tab" onclick="switchTab('products', this)">Products</button>
+                    <button class="db-tab" onclick="switchTab('harvests', this)">Harvests</button>
+                    <button class="db-tab" onclick="switchTab('qrcodes', this)">QR Codes</button>
+                    <button class="db-tab" onclick="switchTab('traceability', this)">Traceability</button>
+                    <button class="db-tab" onclick="switchTab('shipments', this)">Shipments</button>
+                    <button class="db-tab" onclick="switchTab('markets', this)">Markets</button>
+                    <button class="db-tab" onclick="switchTab('logs', this)">Audit Logs</button>
+                </div>
+
+                <!-- 1. ALL ACCOUNTS TABLE -->
+                <div class="table-responsive" id="table-accounts">
+                    <table>
+                        <thead>
+                            <tr><th>ID</th><th>First Name</th><th>Middle Name</th><th>Last Name</th><th>Age</th><th>Gender</th><th>Address</th><th>Contact</th><th>Email</th><th>User Type</th><th>Status</th><th>Password</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody id="accounts-tbody"></tbody>
+                    </table>
+                </div>
+
+                <!-- 2. PENDING ACCOUNTS TABLE -->
+                <div class="table-responsive hidden" id="table-pending-accounts">
+                    <table>
+                        <thead><tr><th>ID</th><th>First Name</th><th>Last Name</th><th>Email</th><th>User Type</th><th>Contact</th><th>Actions</th></tr></thead>
+                        <tbody id="pending-accounts-tbody"></tbody>
+                    </table>
+                </div>
+
+                <!-- 3. PENDING POSTS TABLE -->
+                <div class="table-responsive hidden" id="table-pending-posts">
+                    <table>
+                        <thead><tr><th>Post ID</th><th>Author</th><th>Content Preview</th><th>Type</th><th>Actions</th></tr></thead>
+                        <tbody id="pending-posts-tbody"></tbody>
+                    </table>
+                </div>
+
+                <!-- 4. USER REPORTS TABLE -->
+                <div class="table-responsive hidden" id="table-reports">
+                    <table>
+                        <thead><tr><th>Report ID</th><th>Reported User</th><th>Reason</th><th>Reported By</th><th>Actions</th></tr></thead>
+                        <tbody id="reports-tbody"></tbody>
+                    </table>
+                </div>
+
+                <div class="table-responsive hidden" id="table-complaints">
+                    <table>
+                        <thead><tr><th>Complaint ID</th><th>Name</th><th>Email</th><th>Complaint</th><th>Submitted</th><th>Actions</th></tr></thead>
+                        <tbody id="complaints-tbody"></tbody>
+                    </table>
+                </div>
+
+                <!-- 5. NEW TABLES (From Schema Images) -->
+
+                <!-- FARMS -->
+                <div class="table-responsive hidden" id="table-farms">
+                    <table>
+                        <thead><tr><th>Farm ID</th><th>Farmer ID</th><th>Farm Name</th><th>Address</th><th>Province</th><th>Municipality</th><th>Barangay</th><th>Latitude</th><th>Longitude</th><th>Farm Size</th><th>Unit</th><th>Created At</th></tr></thead>
+                        <tbody>
+                            <tr><td>1</td><td>2</td><td>San Jose Farm</td><td>123 Farm Road</td><td>Nueva Ecija</td><td>San Jose</td><td>Poblacion</td><td>15.1234</td><td>120.9876</td><td>5.5</td><td>Hectares</td><td>Oct 24, 2024</td></tr>
+                            <tr><td>2</td><td>5</td><td>Green Valley Farms</td><td>456 Mountain View</td><td>Benguet</td><td>La Trinidad</td><td>Balili</td><td>16.4521</td><td>120.5874</td><td>3.2</td><td>Hectares</td><td>Oct 25, 2024</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- PRODUCTS -->
+                <div class="table-responsive hidden" id="table-products">
+                    <table>
+                        <thead><tr><th>Product ID</th><th>Product Name</th><th>Category</th><th>Description</th><th>Unit of Measure</th><th>Created At</th></tr></thead>
+                        <tbody id="products-tbody"></tbody>
+                    </table>
+                </div>
+
+                <!-- PRODUCT BATCHES -->
+                <div class="table-responsive hidden" id="table-batches">
+                    <table>
+                        <thead><tr><th>Batch ID</th><th>Batch Code</th><th>Product ID</th><th>Farm ID</th><th>Quantity</th><th>Unit</th><th>Harvest Date</th><th>Product Image</th><th>Current Status</th><th>Created At</th><th>Updated At</th></tr></thead>
+                        <tbody>
+                            <tr><td>1001</td><td>BATCH-RICE-01</td><td>101</td><td>1</td><td>500</td><td>kg</td><td>2024-10-15</td><td>rice.jpg</td><td><span class="badge" style="background: rgba(16,185,129,0.2); color: var(--primary);">available_at_market</span></td><td>Oct 15, 2024</td><td>Oct 18, 2024</td></tr>
+                            <tr><td>1002</td><td>BATCH-TOM-02</td><td>102</td><td>2</td><td>200</td><td>kg</td><td>2024-10-18</td><td>tomatoes.jpg</td><td><span class="badge" style="background: rgba(245,158,11,0.2); color: var(--warning);">in_transit</span></td><td>Oct 18, 2024</td><td>Oct 19, 2024</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- HARVEST RECORDS -->
+                <div class="table-responsive hidden" id="table-harvests">
+                    <table>
+                        <thead><tr><th>Harvest ID</th><th>Batch ID</th><th>Farmer ID</th><th>Harvest Date</th><th>Quantity Harvested</th><th>Quality Grade</th><th>Notes</th><th>Created At</th></tr></thead>
+                        <tbody>
+                            <tr><td>501</td><td>1001</td><td>2</td><td>2024-10-15</td><td>500.00</td><td>Grade A</td><td>Good weather during harvest.</td><td>Oct 15, 2024</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- QR CODES -->
+                <div class="table-responsive hidden" id="table-qrcodes">
+                    <table>
+                        <thead><tr><th>QR ID</th><th>Batch ID</th><th>QR Token</th><th>QR Image Path</th><th>Is Active</th><th>Created At</th></tr></thead>
+                        <tbody>
+                            <tr><td>901</td><td>1001</td><td>tk_8f7a9b2c1d</td><td>/images/qr/901.png</td><td><span class="badge" style="background: rgba(16,185,129,0.2); color: var(--primary);">1 (Active)</span></td><td>Oct 15, 2024</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- TRACEABILITY LOGS -->
+                <div class="table-responsive hidden" id="table-traceability">
+                    <table>
+                        <thead><tr><th>Log ID</th><th>Batch ID</th><th>Updated By</th><th>Status</th><th>Location Name</th><th>Latitude</th><th>Longitude</th><th>Remarks</th><th>Created At</th></tr></thead>
+                        <tbody>
+                            <tr><td>3001</td><td>1001</td><td>2</td><td><span class="badge" style="background: rgba(59,130,246,0.2); color: var(--blue);">harvested</span></td><td>San Jose Farm</td><td>15.1234</td><td>120.9876</td><td>Initial harvest</td><td>Oct 15, 2024</td></tr>
+                            <tr><td>3002</td><td>1001</td><td>5</td><td><span class="badge" style="background: rgba(245,158,11,0.2); color: var(--warning);">in_transit</span></td><td>Transport Vehicle</td><td>15.2000</td><td>120.9000</td><td>En route to market</td><td>Oct 16, 2024</td></tr>
+                            <tr><td>3003</td><td>1001</td><td>8</td><td><span class="badge" style="background: rgba(16,185,129,0.2); color: var(--primary);">available_at_market</span></td><td>Public Market</td><td>15.3000</td><td>120.8500</td><td>Received at stall</td><td>Oct 17, 2024</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- SHIPMENTS -->
+                <div class="table-responsive hidden" id="table-shipments">
+                    <table>
+                        <thead><tr><th>Shipment ID</th><th>Batch ID</th><th>Transporter ID</th><th>Vehicle Number</th><th>Origin</th><th>Destination</th><th>Dispatch Time</th><th>Delivery Time</th><th>Status</th><th>Remarks</th><th>Created At</th></tr></thead>
+                        <tbody>
+                            <tr><td>701</td><td>1001</td><td>5</td><td>ABC-1234</td><td>San Jose Farm</td><td>Public Market</td><td>2024-10-16 08:00</td><td>2024-10-16 10:30</td><td><span class="badge" style="background: rgba(16,185,129,0.2); color: var(--primary);">delivered</span></td><td>Handled with care</td><td>Oct 16, 2024</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- MARKETS -->
+                <div class="table-responsive hidden" id="table-markets">
+                    <table>
+                        <thead><tr><th>Market ID</th><th>Market Name</th><th>Manager ID</th><th>Address</th><th>Province</th><th>Municipality</th><th>Contact Number</th><th>Latitude</th><th>Longitude</th><th>Created At</th></tr></thead>
+                        <tbody>
+                            <tr><td>11</td><td>Cabanatuan Public Market</td><td>8</td><td>Market Area, Cabanatuan</td><td>Nueva Ecija</td><td>Cabanatuan City</td><td>09123456789</td><td>15.4861</td><td>120.9686</td><td>Jan 10, 2024</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- NOTIFICATIONS -->
+                <div class="table-responsive hidden" id="table-notifications">
+                    <table>
+                        <thead><tr><th>Notification ID</th><th>User ID</th><th>Title</th><th>Message</th><th>Channel</th><th>Delivery Status</th><th>Created At</th></tr></thead>
+                        <tbody>
+                            <tr><td>8001</td><td>2</td><td>Harvest Approved</td><td>Your batch #1001 is now available at the market.</td><td><span class="badge" style="background: rgba(139,92,246,0.2); color: var(--purple);">system</span></td><td><span class="badge" style="background: rgba(16,185,129,0.2); color: var(--primary);">read</span></td><td>Oct 17, 2024</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- WEATHER RECORDS -->
+                <div class="table-responsive hidden" id="table-weather">
+                    <table>
+                        <thead><tr><th>Weather ID</th><th>Farm ID</th><th>Harvest ID</th><th>Temperature</th><th>Humidity</th><th>Condition</th><th>Rainfall (mm)</th><th>Recorded At</th></tr></thead>
+                        <tbody>
+                            <tr><td>6001</td><td>1</td><td>501</td><td>32.5</td><td>75.0</td><td>Sunny</td><td>0.0</td><td>Oct 15, 2024 08:00</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- AUDIT LOGS (System Logs) -->
+                <div class="table-responsive hidden" id="table-logs">
+                    <table>
+                        <thead><tr><th>Audit ID</th><th>User ID</th><th>Action</th><th>Entity Type</th><th>Entity ID</th><th>Details</th><th>IP Address</th><th>Created At</th></tr></thead>
+                        <tbody id="logs-tbody"></tbody>
+                    </table>
+                </div>
+
+            </div>
+
+            <!-- REPORT EXTRACTION VIEW (Updated to include all tables) -->
+            <div id="report-view" class="view-section">
+                <div style="margin-bottom: 16px;">
+                    <button class="btn-primary" onclick="emailSalesReport()"><i class="fa-solid fa-envelope"></i> Email sales report (orders CSV attached)</button>
+                </div>
+                <div style="background: var(--bg-surface); padding: 30px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 20px;">
+                    <h3 style="font-size: 1.2rem; margin-bottom: 10px;"><i class="fa-solid fa-file-csv" style="color: var(--primary);"></i> Export System Data</h3>
+                    <p style="color: var(--text-muted); font-size: 0.9rem;">Extract and download the latest database records in CSV format. These files can be opened and analyzed using Microsoft Excel or Google Sheets. Select a table below to generate its report.</p>
+                </div>
+
+                <div class="report-grid">
+                    <!-- Dynamic Data Reports -->
+                    <div class="report-card" data-report-key="users">
+                        <i class="fa-solid fa-users"></i>
+                        <h3>Users Report</h3>
+                        <p>Registered users, personal details, and statuses.</p>
+                        <button class="btn-export" onclick="downloadTableAsCSV('table-accounts', 'AgriTrace_Users_Report')"><i class="fa-solid fa-download"></i> Download CSV</button>
+                    </div>
+                    <div class="report-card" data-report-key="pending-accounts">
+                        <i class="fa-solid fa-user-clock"></i>
+                        <h3>Pending Accounts</h3>
+                        <p>Accounts awaiting admin approval.</p>
+                        <button class="btn-export" onclick="downloadTableAsCSV('table-pending-accounts', 'AgriTrace_Pending_Accounts')"><i class="fa-solid fa-download"></i> Download CSV</button>
+                    </div>
+                    <div class="report-card" data-report-key="pending-posts">
+                        <i class="fa-solid fa-newspaper"></i>
+                        <h3>Pending Posts</h3>
+                        <p>Posts and products awaiting moderation.</p>
+                        <button class="btn-export" onclick="downloadTableAsCSV('table-pending-posts', 'AgriTrace_Pending_Posts')"><i class="fa-solid fa-download"></i> Download CSV</button>
+                    </div>
+                    <div class="report-card" data-report-key="reports">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <h3>User Reports</h3>
+                        <p>Active reports submitted against users.</p>
+                        <button class="btn-export" onclick="downloadTableAsCSV('table-reports', 'AgriTrace_User_Reports')"><i class="fa-solid fa-download"></i> Download CSV</button>
+                    </div>
+
+                    <!-- Static Data Reports (From Schema Images) -->
+                    <div class="report-card" data-report-key="farms">
+                        <i class="fa-solid fa-tractor"></i>
+                        <h3>Farms Report</h3>
+                        <p>Registered farms, locations, and sizes.</p>
+                        <button class="btn-export" onclick="downloadTableAsCSV('table-farms', 'AgriTrace_Farms')"><i class="fa-solid fa-download"></i> Download CSV</button>
+                    </div>
+                    <div class="report-card" data-report-key="products">
+                        <i class="fa-solid fa-box"></i>
+                        <h3>Products Report</h3>
+                        <p>Master catalog of agricultural products.</p>
+                        <button class="btn-export" onclick="downloadTableAsCSV('table-products', 'AgriTrace_Products')"><i class="fa-solid fa-download"></i> Download CSV</button>
+                    </div>
+                    <div class="report-card" data-report-key="batches">
+                        <i class="fa-solid fa-layer-group"></i>
+                        <h3>Product Batches</h3>
+                        <p>Detailed records of specific harvest batches.</p>
+                        <button class="btn-export" onclick="downloadTableAsCSV('table-batches', 'AgriTrace_Product_Batches')"><i class="fa-solid fa-download"></i> Download CSV</button>
+                    </div>
+                    <div class="report-card" data-report-key="harvests">
+                        <i class="fa-solid fa-wheat-awn"></i>
+                        <h3>Harvest Records</h3>
+                        <p>Quantity, quality, and dates of harvests.</p>
+                        <button class="btn-export" onclick="downloadTableAsCSV('table-harvests', 'AgriTrace_Harvests')"><i class="fa-solid fa-download"></i> Download CSV</button>
+                    </div>
+                    <div class="report-card" data-report-key="qrcodes">
+                        <i class="fa-solid fa-qrcode"></i>
+                        <h3>QR Codes</h3>
+                        <p>Generated QR tokens for product tracking.</p>
+                        <button class="btn-export" onclick="downloadTableAsCSV('table-qrcodes', 'AgriTrace_QR_Codes')"><i class="fa-solid fa-download"></i> Download CSV</button>
+                    </div>
+                    <div class="report-card" data-report-key="traceability">
+                        <i class="fa-solid fa-route"></i>
+                        <h3>Traceability Logs</h3>
+                        <p>Movement history of batches from farm to market.</p>
+                        <button class="btn-export" onclick="downloadTableAsCSV('table-traceability', 'AgriTrace_Traceability')"><i class="fa-solid fa-download"></i> Download CSV</button>
+                    </div>
+                    <div class="report-card" data-report-key="shipments">
+                        <i class="fa-solid fa-truck-fast"></i>
+                        <h3>Shipments</h3>
+                        <p>Transportation and delivery records.</p>
+                        <button class="btn-export" onclick="downloadTableAsCSV('table-shipments', 'AgriTrace_Shipments')"><i class="fa-solid fa-download"></i> Download CSV</button>
+                    </div>
+                    <div class="report-card" data-report-key="markets">
+                        <i class="fa-solid fa-store"></i>
+                        <h3>Markets</h3>
+                        <p>Registered markets and their managers.</p>
+                        <button class="btn-export" onclick="downloadTableAsCSV('table-markets', 'AgriTrace_Markets')"><i class="fa-solid fa-download"></i> Download CSV</button>
+                    </div>
+                    <div class="report-card" data-report-key="notifications">
+                        <i class="fa-solid fa-bell"></i>
+                        <h3>Notifications</h3>
+                        <p>System alerts sent to users.</p>
+                        <button class="btn-export" onclick="downloadTableAsCSV('table-notifications', 'AgriTrace_Notifications')"><i class="fa-solid fa-download"></i> Download CSV</button>
+                    </div>
+                    <div class="report-card" data-report-key="weather">
+                        <i class="fa-solid fa-cloud-sun"></i>
+                        <h3>Weather Records</h3>
+                        <p>Historical weather data linked to harvests.</p>
+                        <button class="btn-export" onclick="downloadTableAsCSV('table-weather', 'AgriTrace_Weather')"><i class="fa-solid fa-download"></i> Download CSV</button>
+                    </div>
+                    <div class="report-card" data-report-key="logs">
+                        <i class="fa-solid fa-clipboard-list"></i>
+                        <h3>Audit Logs</h3>
+                        <p>System activity and user actions.</p>
+                        <button class="btn-export" onclick="downloadTableAsCSV('table-logs', 'AgriTrace_Audit_Logs')"><i class="fa-solid fa-download"></i> Download CSV</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="profile-view" class="view-section">
+                <section class="profile-hero">
+                    <img class="avatar-xl" id="admin-profile-photo" src="" alt="Profile photo">
+                    <div style="flex: 1; min-width: 200px;">
+                        <h2 id="admin-profile-name">My Profile</h2>
+                        <p id="admin-profile-email" style="color: var(--text-muted);"></p>
+                    </div>
+                    <div>
+                        <input type="file" id="admin-profile-photo-input" accept="image/*" hidden>
+                        <button class="btn-outline" type="button" onclick="document.getElementById('admin-profile-photo-input').click()"><i class="fa-solid fa-camera"></i> Change Photo</button>
+                    </div>
+                </section>
+                <form class="form-card" id="admin-profile-form" onsubmit="saveAdminProfile(event)">
+                    <h3><i class="fa-solid fa-id-card" style="color: var(--primary);"></i> Personal Information</h3>
+                    <div class="form-grid">
+                        <div class="field"><label for="admin-profile-first">First Name</label><input id="admin-profile-first" required></div>
+                        <div class="field"><label for="admin-profile-middle">Middle Name</label><input id="admin-profile-middle"></div>
+                        <div class="field"><label for="admin-profile-last">Last Name</label><input id="admin-profile-last" required></div>
+                        <div class="field"><label for="admin-profile-age">Age</label><input id="admin-profile-age" type="number" min="18" max="120"></div>
+                        <div class="field"><label for="admin-profile-gender">Gender</label><select id="admin-profile-gender"><option>Male</option><option>Female</option><option>Other</option></select></div>
+                        <div class="field"><label for="admin-profile-contact">Contact Number</label><input id="admin-profile-contact"></div>
+                        <div class="field span-2"><label for="admin-profile-address">Address</label><input id="admin-profile-address"></div>
+                    </div>
+                    <button class="btn-primary" type="submit">Save Profile</button>
+                </form>
+            </div>
+
+            <div id="cloud-view" class="view-section">
+                <section class="form-card">
+                    <h3><i class="fa-solid fa-cloud-arrow-up" style="color: var(--primary);"></i> Upload a file</h3>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                        <input type="file" id="cloud-file" accept="image/*,application/pdf" style="flex: 1; min-width: 200px;">
+                        <button class="btn-primary" type="button" onclick="uploadCloudFile()"><i class="fa-solid fa-upload"></i> Upload</button>
+                        <button class="btn-primary" type="button" onclick="connectPuter()"><i class="fa-solid fa-link"></i> Connect / Reconnect Puter</button>
+                        <span id="cloud-driver" class="status-pill">—</span>
+                    </div>
+                    <p class="field-help">Photos and PDFs up to 8 MB are stored in the connected Puter account.</p>
+                </section>
+                <section class="form-card" style="margin-top: 16px;">
+                    <h3><i class="fa-solid fa-folder-open" style="color: var(--primary);"></i> Files</h3>
+                    <div class="table-responsive"><table><thead><tr><th>Path</th><th>Size</th><th>Modified</th><th>Actions</th></tr></thead><tbody id="cloud-files"></tbody></table></div>
+                </section>
+                <section class="form-card" style="margin-top: 16px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;">
+                        <h3 style="margin: 0;"><i class="fa-solid fa-database" style="color: var(--primary);"></i> Database backups</h3>
+                        <button class="btn-primary" type="button" id="backup-now" onclick="createBackupNow()"><i class="fa-solid fa-floppy-disk"></i> Back up now</button>
+                    </div>
+                    <p class="field-help">Database backups are generated by the AgriTrace server and stored on that server.</p>
+                    <div class="table-responsive"><table><thead><tr><th>Created</th><th>File</th><th>Size</th><th>Storage</th><th>Status</th></tr></thead><tbody id="cloud-backups"></tbody></table></div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- CRUD MODAL -->
+    <div class="modal-overlay crud-modal" id="crud-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="crud-title">Add New Account</h2>
+                <button class="close-btn" onclick="closeModal('crud-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="crud-form" onsubmit="saveAccount(event)">
+                <input type="hidden" id="edit-id">
+                <div class="crud-form">
+                    <div class="input-group"><label>First Name</label><input type="text" id="crud-fname" required></div>
+                    <div class="input-group"><label>Middle Name (Opt)</label><input type="text" id="crud-mname"></div>
+                    <div class="input-group"><label>Last Name</label><input type="text" id="crud-lname" required></div>
+                    <div class="input-group"><label>Age</label><input type="number" id="crud-age" required></div>
+                    <div class="input-group"><label>Gender</label><select id="crud-gender"><option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option></select></div>
+                    <div class="input-group"><label>Contact Number</label><input type="text" id="crud-contact" required></div>
+                    <div class="input-group full-width"><label>Address</label><input type="text" id="crud-address" required></div>
+                    <div class="input-group"><label>Email</label><input type="email" id="crud-email" required></div>
+                    <div class="input-group"><label>User Type</label><select id="crud-role"></select></div>
+                    <div class="input-group"><label>Password</label><input type="password" id="crud-pass" autocomplete="new-password"></div>
+                </div>
+                <button type="submit" class="btn-primary" style="width: 100%; margin-top: 20px;">Save Account</button>
+            </form>
+        </div>
+    </div>
+    <script src="agritrace.js"></script>
+    <script src="admin.js"></script>
+    <script src="admin-cloud.js"></script>
+</body>
+</html>

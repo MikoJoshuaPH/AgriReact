@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgriTrace - My Profile</title>
+    <link rel="stylesheet" href="styled.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+    <div class="app-container no-right">
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <div class="logo" onclick="location.href='/dashboard'">
+                <i class="fa-solid fa-leaf"></i> AgriTrace
+            </div>
+
+            <div class="nav-section">
+                <a href="/dashboard" class="nav-item" data-view="feed"><i class="fa-solid fa-house"></i> Home</a>
+                <a href="/dashboard#market" class="nav-item" data-view="market"><i class="fa-solid fa-store"></i> Marketplace</a>
+                <a href="/dashboard#farmer-hub" class="nav-item" data-view="farmer-hub"><i class="fa-solid fa-tractor"></i> Farmer Hub</a>
+                <a href="/dashboard#analytics" class="nav-item" data-view="analytics"><i class="fa-solid fa-chart-line"></i> Analytics</a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-title">Account</div>
+                <a href="/dashboard#orders" class="nav-item" data-view="orders"><i class="fa-solid fa-box"></i> My Orders</a>
+                <a href="/dashboard#saved" class="nav-item" data-view="saved"><i class="fa-solid fa-heart"></i> Saved Items</a>
+                <a href="/dashboard#notifications" class="nav-item"><i class="fa-solid fa-bell"></i> Notifications</a>
+            </div>
+
+            <div class="nav-section">
+                <div class="nav-title">System</div>
+                <a href="/admin" class="nav-item admin-only hidden"><i class="fa-solid fa-database"></i> Database</a>
+                <a href="/dashboard#help" class="nav-item" data-view="help"><i class="fa-solid fa-circle-question"></i> Help Center</a>
+                <a href="javascript:void(0)" onclick="signOut()" class="nav-item logout"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+            </div>
+
+            <div class="profile-bottom" onclick="location.href='/profile'">
+                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80" alt="User" id="sidebar-profile-pic">
+                <div class="profile-info">
+                    <h4 id="sidebar-profile-name">Loading...</h4>
+                    <p>My Profile</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN -->
+        <main class="main-content">
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+                    <h2 style="font-size: 1.3rem; color: var(--text-main);">My Profile</h2>
+                </div>
+                <div class="topbar-right">
+                    <a href="/dashboard" class="btn-muted" style="padding: 8px 14px; font-size: 0.85rem;"><i class="fa-solid fa-arrow-left"></i> Back to Home</a>
+                </div>
+            </header>
+
+            <section class="profile-hero">
+                <img class="avatar-xl" id="profile-avatar" src="" alt="Profile photo">
+                <div style="flex: 1; min-width: 200px;">
+                    <h2 id="profile-fullname">—</h2>
+                    <p id="profile-meta">—</p>
+                    <div style="margin-top: 10px; display: flex; gap: 10px; flex-wrap: wrap;">
+                        <span class="status-pill ok" id="profile-status"><i class="fa-solid fa-circle-check"></i> Active</span>
+                        <span class="status-pill" id="profile-role" style="background: rgba(59,130,246,0.15); color: var(--blue);">Member</span>
+                    </div>
+                </div>
+                <div>
+                    <input type="file" id="avatar-input" accept="image/*" hidden>
+                    <div class="owner-only">
+                        <button class="btn-outline" onclick="document.getElementById('avatar-input').click()"><i class="fa-solid fa-camera"></i> Change Photo</button>
+                        <button class="btn-outline hidden" id="move-avatar-to-cloud" type="button" onclick="moveProfilePhotoToCloud()" style="margin-top: 8px;"><i class="fa-solid fa-cloud-arrow-up"></i> Move Photo to Puter</button>
+                    </div>
+                    <button class="btn-primary hidden" id="profile-follow-button" type="button" onclick="toggleProfileFollow()"></button>
+                </div>
+            </section>
+
+            <section class="form-card owner-only" id="profile-qr-card">
+                <h3><i class="fa-solid fa-qrcode" style="color: var(--primary);"></i> Add me on AgriTrace</h3>
+                <div style="display: flex; align-items: center; gap: 18px; flex-wrap: wrap;">
+                    <img id="profile-qr-code" alt="QR code for your AgriTrace profile" width="180" height="180" style="background: #fff; padding: 8px; border-radius: 10px;">
+                    <div>
+                        <p style="color: var(--text-muted); margin-bottom: 12px;">Let someone scan this code to open your profile and add you.</p>
+                        <button class="btn-muted" type="button" onclick="copyProfileLink()"><i class="fa-solid fa-link"></i> Copy profile link</button>
+                        <p id="profile-qr-status" class="field-help" role="status" style="margin-top: 8px;"></p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="form-card">
+                <h3><i class="fa-solid fa-newspaper" style="color: var(--primary);"></i> My Posts</h3>
+                <div id="profile-posts" class="stack-list" style="margin-top: 14px;"></div>
+            </section>
+
+            <div class="modal-overlay" id="profile-post-edit-modal">
+                <div class="modal" style="max-width: 650px;">
+                    <div class="modal-header">
+                        <h2><i class="fa-solid fa-pen-to-square"></i> Edit Post</h2>
+                        <button class="close-btn" type="button" onclick="closeModal('profile-post-edit-modal')" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div class="field">
+                        <label for="profile-post-edit-content">Caption</label>
+                        <textarea id="profile-post-edit-content" maxlength="5000" placeholder="Write a caption..." style="min-height: 120px; resize: vertical;"></textarea>
+                    </div>
+                    <div id="profile-post-edit-media" style="margin: 12px 0;"></div>
+                    <div class="field">
+                        <label for="profile-post-edit-files">Replace post photos or video</label>
+                        <input id="profile-post-edit-files" type="file" accept="image/*,video/mp4,video/webm,video/quicktime" multiple>
+                        <div class="field-help">Choose up to 5 files, each 8 MB or smaller. Choosing files replaces the current attachments.</div>
+                    </div>
+                    <label style="display: flex; align-items: center; gap: 8px; margin: 12px 0;">
+                        <input id="profile-post-edit-remove-media" type="checkbox" style="width: auto;">
+                        Remove current attachments
+                    </label>
+                    <div style="display: flex; gap: 10px; margin-top: 16px;">
+                        <button type="button" class="btn-muted" onclick="closeModal('profile-post-edit-modal')" style="flex: 1;">Cancel</button>
+                        <button type="button" class="btn-primary" id="profile-post-edit-save" onclick="saveProfilePostEdit()" style="flex: 1;">Save Changes</button>
+                    </div>
+                </div>
+            </div>
+
+            <form class="form-card owner-only" id="profile-form" onsubmit="saveProfile(event)">
+                <h3><i class="fa-solid fa-id-card" style="color: var(--primary);"></i> Personal Information</h3>
+                <div class="form-grid">
+                    <div class="field"><label for="p-first">First Name</label><input id="p-first" required></div>
+                    <div class="field"><label for="p-middle">Middle Name (Optional)</label><input id="p-middle"></div>
+                    <div class="field"><label for="p-last">Last Name</label><input id="p-last" required></div>
+                    <div class="field"><label for="p-age">Age</label><input type="number" id="p-age" min="18" required></div>
+                    <div class="field"><label for="p-gender">Gender</label>
+                        <select id="p-gender"><option>Male</option><option>Female</option><option>Other</option></select>
+                    </div>
+                    <div class="field"><label for="p-contact">Contact Number</label><input id="p-contact" required></div>
+                    <div class="field span-2"><label for="p-address">Address</label><input id="p-address" required></div>
+                    <div class="field"><label for="p-email">Email Address</label><input type="email" id="p-email" disabled><div class="field-help">Email is used to sign in and cannot be changed here.</div></div>
+                    <div class="field"><label for="p-type">User Type</label><select id="p-type"></select></div>
+                </div>
+                <div class="span-2" style="margin-top: 18px;">
+                    <label style="font-size: 0.8rem; color: var(--text-muted);">Map location (drag the pin to adjust it)</label>
+                    <div style="display: flex; gap: 8px; margin: 8px 0; flex-wrap: wrap;">
+                        <input id="loc-search" type="search" placeholder="Search an address" aria-label="Search an address" style="flex: 1; min-width: 180px;">
+                        <button id="loc-search-submit" type="button" class="btn-muted" onclick="searchLocation()">Find</button>
+                        <button type="button" class="btn-muted" onclick="useMyLocation()"><i class="fa-solid fa-location-crosshairs"></i> Use my location</button>
+                    </div>
+                    <div id="profile-map" style="height: 280px; border-radius: 12px; border: 1px solid var(--border-color);"></div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 8px; flex-wrap: wrap;">
+                        <p id="loc-label" style="font-size: 0.8rem; color: var(--text-muted);">No location set yet.</p>
+                        <button type="button" class="btn-primary" onclick="saveLocation()">Save location</button>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-muted" onclick="fillProfileForm()">Reset</button>
+                    <button type="submit" class="btn-primary">Save Changes</button>
+                </div>
+            </form>
+
+            <form class="form-card owner-only" id="password-form" onsubmit="changePassword(event)">
+                <h3><i class="fa-solid fa-lock" style="color: var(--primary);"></i> Change Password</h3>
+                <div class="form-grid">
+                    <div class="field span-2"><label for="pw-current">Current Password</label><input type="password" id="pw-current" required autocomplete="current-password"></div>
+                    <div class="field"><label for="pw-new">New Password</label><input type="password" id="pw-new" required minlength="8" autocomplete="new-password"><div class="field-help">At least 8 characters.</div></div>
+                    <div class="field"><label for="pw-confirm">Confirm New Password</label><input type="password" id="pw-confirm" required minlength="8" autocomplete="new-password"></div>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary">Update Password</button>
+                </div>
+            </form>
+        </main>
+    </div>
+    <script src="agritrace.js"></script>
+    <script src="profile.js"></script>
+</body>
+</html>
