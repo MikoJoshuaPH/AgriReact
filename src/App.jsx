@@ -12,8 +12,8 @@ const pages = {
   'database.html': 'adminDashboard',
   'trace': 'trace',
   'trace.html': 'trace',
-  'cloud': 'adminDashboard',
-  'admin-cloud.html': 'adminDashboard',
+  'cloud': 'adminCloud',
+  'admin-cloud.html': 'adminCloud',
 };
 
 const canonicalPaths = {
@@ -28,9 +28,6 @@ const canonicalPaths = {
 export default function App() {
   const path = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase();
   const page = pages[path] || 'loginpage';
-  if (path === 'cloud' || path === 'admin-cloud.html') {
-    window.history.replaceState(window.history.state, '', '/admin#cloud');
-  }
   const protectedPage = page !== 'loginpage' && page !== 'trace';
   const hasSession = Boolean(
     localStorage.getItem('access_token') || localStorage.getItem('refresh_token'),

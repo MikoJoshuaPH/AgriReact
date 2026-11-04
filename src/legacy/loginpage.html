@@ -154,7 +154,7 @@
         .auth-btn:active { transform: translateY(1px); }
         .auth-btn:disabled { cursor: wait; opacity: 0.75; }
 
-        .social-auth-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+        .social-auth-options { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 12px; }
         .social-auth-button {
             padding: 10px 8px;
             border: 1px solid var(--border-color);
@@ -261,7 +261,6 @@
                     <button type="submit" class="auth-btn" id="login-submit">Login</button>
                     <div class="social-auth-options">
                         <button type="button" class="social-auth-button" onclick="startSocialLogin('google', 'login')"><i class="fa-brands fa-google"></i> Continue with Google</button>
-                        <button type="button" class="social-auth-button" onclick="startSocialLogin('facebook', 'login')"><i class="fa-brands fa-facebook"></i> Continue with Facebook</button>
                     </div>
                     <div class="auth-toggle">
                         <a href="javascript:void(0)" onclick="showLoginStep('forgot')">Forgot password?</a>
@@ -365,7 +364,6 @@
                     <button type="submit" class="auth-btn">Create Account</button>
                     <div class="social-auth-options">
                         <button type="button" class="social-auth-button" onclick="startSocialLogin('google', 'register')"><i class="fa-brands fa-google"></i> Register with Google</button>
-                        <button type="button" class="social-auth-button" onclick="startSocialLogin('facebook', 'register')"><i class="fa-brands fa-facebook"></i> Register with Facebook</button>
                     </div>
                     <p class="social-auth-note">New accounts still require administrator approval.</p>
                     <div class="auth-toggle">

@@ -19,6 +19,11 @@ export default defineConfig(({ mode }) => {
     base: './',
     plugins: [react()],
     server: {
+      // Keep the development server on the hostname used by the API proxy.
+      // Failing on a busy port is safer than silently opening another app.
+      host: 'localhost',
+      port: 5173,
+      strictPort: true,
       proxy: {
         '/api': {
           target: backendUrl,

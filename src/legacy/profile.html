@@ -38,7 +38,7 @@
             </div>
 
             <div class="profile-bottom" onclick="location.href='/profile'">
-                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80" alt="User" id="sidebar-profile-pic">
+                <img src="/default-avatar.jpg" alt="User" id="sidebar-profile-pic">
                 <div class="profile-info">
                     <h4 id="sidebar-profile-name">Loading...</h4>
                     <p>My Profile</p>
@@ -72,10 +72,20 @@
                     <input type="file" id="avatar-input" accept="image/*" hidden>
                     <div class="owner-only">
                         <button class="btn-outline" onclick="document.getElementById('avatar-input').click()"><i class="fa-solid fa-camera"></i> Change Photo</button>
-                        <button class="btn-outline hidden" id="move-avatar-to-cloud" type="button" onclick="moveProfilePhotoToCloud()" style="margin-top: 8px;"><i class="fa-solid fa-cloud-arrow-up"></i> Move Photo to Puter</button>
+                        <button class="btn-outline hidden" id="move-avatar-to-cloud" type="button" onclick="moveProfilePhotoToCloud()" style="margin-top: 8px;"><i class="fa-solid fa-cloud-arrow-up"></i> Move Photo to Cloud</button>
                     </div>
                     <button class="btn-primary hidden" id="profile-follow-button" type="button" onclick="toggleProfileFollow()"></button>
                 </div>
+            </section>
+
+            <section class="form-card" id="profile-farm-card">
+                <h3><i class="fa-solid fa-seedling" style="color: var(--primary);"></i> Registered Farm</h3>
+                <div id="profile-farm-details"></div>
+            </section>
+
+            <section class="form-card" id="profile-products-card">
+                <h3><i class="fa-solid fa-basket-shopping" style="color: var(--primary);"></i> Available Products</h3>
+                <div id="profile-products" class="market-grid-layout" style="margin-top: 14px;"></div>
             </section>
 
             <section class="form-card owner-only" id="profile-qr-card">
@@ -107,13 +117,13 @@
                     </div>
                     <div id="profile-post-edit-media" style="margin: 12px 0;"></div>
                     <div class="field">
-                        <label for="profile-post-edit-files">Replace post photos or video</label>
+                        <label id="profile-post-edit-files-label" for="profile-post-edit-files">Replace post photos or video</label>
                         <input id="profile-post-edit-files" type="file" accept="image/*,video/mp4,video/webm,video/quicktime" multiple>
-                        <div class="field-help">Choose up to 5 files, each 8 MB or smaller. Choosing files replaces the current attachments.</div>
+                        <div id="profile-post-edit-files-help" class="field-help">Choose up to 5 files, each 8 MB or smaller. Choosing files replaces the current attachments.</div>
                     </div>
                     <label style="display: flex; align-items: center; gap: 8px; margin: 12px 0;">
                         <input id="profile-post-edit-remove-media" type="checkbox" style="width: auto;">
-                        Remove current attachments
+                        <span id="profile-post-edit-remove-label">Remove current attachments</span>
                     </label>
                     <div style="display: flex; gap: 10px; margin-top: 16px;">
                         <button type="button" class="btn-muted" onclick="closeModal('profile-post-edit-modal')" style="flex: 1;">Cancel</button>

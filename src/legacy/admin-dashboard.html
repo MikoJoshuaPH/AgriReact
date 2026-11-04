@@ -33,22 +33,12 @@
         .color-purple { background: color-mix(in srgb, var(--purple) 16%, transparent); color: var(--purple); }
         .color-cyan { background: color-mix(in srgb, #4fc3d9 16%, transparent); color: #4fc3d9; }
 
-        /* Tables and tabs */
-        .db-tabs { display: flex; gap: 6px; margin-bottom: 18px; border-bottom: 1px solid var(--border-color); padding-bottom: 0; overflow-x: auto; }
-        .db-tab {
-            background: transparent;
-            color: var(--text-muted);
-            padding: 10px 16px;
-            border-bottom: 2px solid transparent;
-            margin-bottom: -1px;
-            font-weight: 600;
-            cursor: pointer;
-            font-size: 0.88rem;
-            white-space: nowrap;
-            transition: color 0.15s, border-color 0.15s;
-        }
-        .db-tab:hover { color: var(--text-main); }
-        .db-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+        /* Database sections and cards */
+        .db-section-nav { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 20px; }
+        .db-section-nav button { display: flex; align-items: center; gap: 9px; min-height: 46px; padding: 10px 13px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-surface); color: var(--text-muted); font: inherit; font-size: 0.84rem; font-weight: 600; text-align: left; cursor: pointer; transition: border-color 0.15s, color 0.15s, background-color 0.15s; }
+        .db-section-nav button i { width: 18px; color: var(--primary); text-align: center; }
+        .db-section-nav button:hover, .db-section-nav button.active { border-color: var(--primary); color: var(--text-main); background: color-mix(in srgb, var(--primary) 8%, var(--bg-surface)); }
+        .db-section-nav button.active { box-shadow: inset 3px 0 var(--primary); }
         .table-responsive { background: var(--bg-surface); border-radius: var(--radius-md); border: 1px solid var(--border-color); overflow: auto; }
         .table-responsive table { width: max-content; min-width: 100%; }
         table { width: 100%; border-collapse: collapse; min-width: 1100px; }
@@ -63,10 +53,53 @@
         .btn-approve { background: color-mix(in srgb, var(--primary) 16%, transparent); color: var(--primary); }
         .btn-reject { background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger); }
 
+        .db-section-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+        .db-search { display: flex; align-items: center; gap: 10px; width: min(100%, 440px); padding: 0 14px; background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-md); color: var(--text-muted); }
+        .db-search input { width: 100%; min-width: 0; padding: 12px 0; border: 0; outline: 0; color: var(--text-main); background: transparent; }
+        .db-result-count { color: var(--text-muted); font-size: 0.82rem; white-space: nowrap; }
+        .db-date-filters { display: none; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .db-date-filters.active { display: flex; }
+        .db-date-filters label { color: var(--text-muted); font-size: 0.76rem; }
+        .db-date-filters input { padding: 8px 10px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-main); }
+        .db-live-status { color: var(--text-muted); font-size: 0.76rem; }
+        .db-record-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 290px), 1fr)); gap: 14px; }
+        .db-record-card { min-width: 0; overflow: hidden; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-surface); transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s; }
+        .db-record-card:hover { border-color: color-mix(in srgb, var(--primary) 55%, var(--border-color)); box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+        .db-record-image { position: relative; display: grid; place-items: center; width: 100%; height: 154px; overflow: hidden; background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 20%, var(--bg-main)), var(--bg-main)); color: var(--primary); }
+        .db-record-image img { width: 100%; height: 100%; object-fit: cover; }
+        .db-record-image.qr-image img { width: 138px; height: 138px; padding: 10px; border-radius: 12px; background: #fff; object-fit: contain; }
+        .db-record-image i { font-size: 2.3rem; opacity: 0.8; }
+        .db-record-body { padding: 16px 18px 18px; }
+        .db-record-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+        .db-record-heading h3 { overflow: hidden; margin: 0; font-size: 1rem; text-overflow: ellipsis; white-space: nowrap; }
+        .db-record-id { display: block; margin-top: 4px; color: var(--text-muted); font-size: 0.74rem; }
+        .db-record-fields { display: grid; gap: 10px; margin: 0; }
+        .db-record-fields div { min-width: 0; }
+        .db-record-fields dt { margin-bottom: 3px; color: var(--text-muted); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+        .db-record-fields dd { overflow: hidden; margin: 0; font-size: 0.84rem; text-overflow: ellipsis; white-space: nowrap; }
+        .db-record-actions { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 16px; padding-top: 13px; border-top: 1px solid var(--border-color); }
+        .db-record-actions .action-btn { margin: 0; }
+        .db-pagination { display: flex; justify-content: center; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 20px; }
+        .db-page-btn { min-width: 36px; height: 36px; padding: 0 10px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); background: var(--bg-surface); color: var(--text-main); font: inherit; cursor: pointer; }
+        .db-page-btn:hover:not(:disabled), .db-page-btn.active { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 14%, var(--bg-surface)); color: var(--primary); }
+        .db-page-btn:disabled { cursor: default; opacity: 0.45; }
+        .db-page-ellipsis { padding: 0 3px; color: var(--text-muted); }
+        .db-empty-state { grid-column: 1 / -1; padding: 36px 20px; border: 1px dashed var(--border-color); border-radius: var(--radius-md); color: var(--text-muted); text-align: center; }
+        .db-detail-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        .db-detail-item { min-width: 0; padding: 12px; border-radius: var(--radius-sm); background: var(--bg-main); }
+        .db-detail-item dt { margin-bottom: 5px; color: var(--text-muted); font-size: 0.72rem; font-weight: 700; text-transform: uppercase; }
+        .db-detail-item dd { margin: 0; overflow-wrap: anywhere; font-size: 0.88rem; }
+        .data-export-source { display: none; }
+
         /* CRUD modal */
         .crud-modal .modal { max-width: 800px; }
         .crud-form { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px 16px; }
         .crud-form .full-width { grid-column: span 3; }
+        .trace-form-modal .modal { max-width: 760px; }
+        .trace-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+        .trace-form-grid .full-width { grid-column: span 2; }
+        .trace-workflow-help { color: var(--text-muted); font-size: 0.85rem; margin: -4px 0 14px; }
+        .detail-modal .modal { max-width: 760px; }
 
         /* Report cards */
         .report-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; margin-top: 20px; }
@@ -99,6 +132,18 @@
             font-size: 0.84rem;
         }
         .btn-export:hover { background: var(--primary); color: var(--on-primary); border-color: var(--primary); }
+        .report-button-spinner {
+            display: inline-block;
+            width: .9em;
+            height: .9em;
+            margin-right: .4em;
+            border: 2px solid currentColor;
+            border-right-color: transparent;
+            border-radius: 50%;
+            vertical-align: -.12em;
+            animation: report-button-spin .7s linear infinite;
+        }
+        @keyframes report-button-spin { to { transform: rotate(360deg); } }
 
         .view-section { display: none; }
         .view-section.active { display: block; }
@@ -129,11 +174,19 @@
             .stat-card { padding: 12px; gap: 10px; }
             .stat-info h3 { font-size: 1.1rem; }
             .stat-icon { width: 36px; height: 36px; font-size: 1rem; }
-            .crud-modal .modal { max-width: none; }
+            .crud-modal .modal, .trace-form-modal .modal { max-width: none; }
             .crud-form { grid-template-columns: 1fr; }
             .crud-form .full-width { grid-column: 1; }
+            .trace-form-grid { grid-template-columns: 1fr; }
+            .trace-form-grid .full-width { grid-column: 1; }
+            .db-section-toolbar { align-items: stretch; flex-direction: column; }
+            .db-search { width: 100%; }
+            .db-result-count { align-self: flex-end; }
+            .db-detail-list { grid-template-columns: 1fr; }
             .report-grid { grid-template-columns: 1fr; }
-            .db-tab { padding: 8px 12px; font-size: 0.84rem; }
+            .db-section-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+            .db-section-nav button { padding: 9px 10px; font-size: 0.78rem; }
+            .db-record-image { height: 138px; }
             th, td { padding: 11px 14px; }
         }
     </style>
@@ -156,7 +209,7 @@
                 <a href="javascript:void(0)" onclick="signOut()" class="nav-item logout"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
             </div>
             <div class="profile-bottom" onclick="window.location.href='/dashboard'">
-                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80" alt="Admin" id="admin-avatar">
+                <img src="/default-avatar.jpg" alt="Admin" id="admin-avatar">
                 <div class="profile-info"><h4 id="admin-name">Admin Panel</h4><p>Return to App</p></div>
             </div>
         </aside>
@@ -164,7 +217,7 @@
         <main class="main-content">
             <header class="topbar">
                 <div class="topbar-left"><button class="menu-toggle" onclick="toggleSidebar()" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button><h2 id="page-title" style="font-size: 1.5rem;">System Overview</h2></div>
-                <button class="btn-primary" onclick="openAddAccount()" id="add-btn"><i class="fa-solid fa-plus"></i> Add New Account</button>
+                <button class="btn-primary" onclick="openSelectedAddForm()" id="add-btn"><i class="fa-solid fa-plus"></i> <span id="add-btn-label">Add New Account</span></button>
             </header>
 
             <!-- MAIN DATABASE VIEW -->
@@ -172,19 +225,15 @@
                 <!-- COMPREHENSIVE STATISTICS GRID (Interactive) -->
                 <div class="db-header-stats">
                     <!-- User Stats (Dynamic) -->
-                    <div class="stat-card" onclick="switchTab('accounts', document.querySelectorAll('.db-tab')[0])">
+                    <div class="stat-card" onclick="switchTab('accounts')">
                         <div class="stat-icon color-primary"><i class="fa-solid fa-users"></i></div>
                         <div class="stat-info"><h3 id="stat-total-users">0</h3><p>Active Accounts</p></div>
                     </div>
-                    <div class="stat-card" onclick="switchTab('pending-accounts', document.querySelectorAll('.db-tab')[1])">
-                        <div class="stat-icon color-warning"><i class="fa-solid fa-user-clock"></i></div>
-                        <div class="stat-info"><h3 id="stat-pending-users">0</h3><p>Pending Accounts</p></div>
-                    </div>
-                    <div class="stat-card" onclick="switchTab('pending-posts', document.querySelectorAll('.db-tab')[2])">
+                    <div class="stat-card" onclick="switchTab('complaints')">
                         <div class="stat-icon color-purple"><i class="fa-solid fa-newspaper"></i></div>
-                        <div class="stat-info"><h3 id="stat-pending-posts">0</h3><p>Pending Posts</p></div>
+                        <div class="stat-info"><h3 id="stat-open-complaints">0</h3><p>Open Complaints</p></div>
                     </div>
-                    <div class="stat-card" onclick="switchTab('reports', document.querySelectorAll('.db-tab')[3])">
+                    <div class="stat-card" onclick="switchTab('reports')">
                         <div class="stat-icon color-danger"><i class="fa-solid fa-triangle-exclamation"></i></div>
                         <div class="stat-info"><h3 id="stat-reports">0</h3><p>Open Reports</p></div>
                     </div>
@@ -204,175 +253,104 @@
                     </div>
                 </div>
 
-                <p class="db-note" style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 15px;"><i class="fa-solid fa-circle-info"></i> Live data from the AgriTrace database. Approvals, moderation and account changes are saved immediately.</p>
-                <!-- UPDATED TABS -->
-                <div class="db-tabs">
-                    <button class="db-tab active" onclick="switchTab('accounts', this)">Users</button>
-                    <button class="db-tab" onclick="switchTab('pending-accounts', this)">Pending Accounts</button>
-                    <button class="db-tab" onclick="switchTab('pending-posts', this)">Pending Posts</button>
-                    <button class="db-tab" onclick="switchTab('reports', this)">User Reports</button>
-                    <button class="db-tab" onclick="switchTab('complaints', this)">Complaints</button>
-                    <button class="db-tab" onclick="switchTab('farms', this)">Farms</button>
-                    <button class="db-tab" onclick="switchTab('products', this)">Products</button>
-                    <button class="db-tab" onclick="switchTab('harvests', this)">Harvests</button>
-                    <button class="db-tab" onclick="switchTab('qrcodes', this)">QR Codes</button>
-                    <button class="db-tab" onclick="switchTab('traceability', this)">Traceability</button>
-                    <button class="db-tab" onclick="switchTab('shipments', this)">Shipments</button>
-                    <button class="db-tab" onclick="switchTab('markets', this)">Markets</button>
-                    <button class="db-tab" onclick="switchTab('logs', this)">Audit Logs</button>
+                <p class="db-note" style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 15px;"><i class="fa-solid fa-circle-info"></i> Live data refreshes automatically. To publish a batch timeline, create a batch, add its harvest record and approve it, then record shipment dispatch and delivery. Batch cards include the public trace link.</p>
+                <div class="db-section-nav" role="navigation" aria-label="Admin database sections">
+                    <button class="active" type="button" data-tab="accounts" aria-current="page"><i class="fa-solid fa-users"></i> Users</button>
+                    <button type="button" data-tab="farmer-applications"><i class="fa-solid fa-file-signature"></i> Farmer Applications</button>
+                    <button type="button" data-tab="complaints"><i class="fa-solid fa-comment-dots"></i> Complaints</button>
+                    <button type="button" data-tab="farm-registry"><i class="fa-solid fa-tractor"></i> Farms</button>
+                    <button type="button" data-tab="catalog"><i class="fa-solid fa-seedling"></i> Product Catalog</button>
+                    <button type="button" data-tab="products"><i class="fa-solid fa-box-open"></i> Marketplace</button>
+                    <button type="button" data-tab="batches"><i class="fa-solid fa-layer-group"></i> Batches</button>
+                    <button type="button" data-tab="harvests"><i class="fa-solid fa-wheat-awn"></i> Harvests</button>
+                    <button type="button" data-tab="shipments"><i class="fa-solid fa-truck-fast"></i> Shipments</button>
+                    <button type="button" data-tab="qrcodes"><i class="fa-solid fa-qrcode"></i> QR Codes</button>
+                    <button type="button" data-tab="reports"><i class="fa-solid fa-flag"></i> User Reports</button>
+                    <button type="button" data-tab="orders"><i class="fa-solid fa-cart-shopping"></i> Orders</button>
+                    <button type="button" data-tab="notifications"><i class="fa-solid fa-bell"></i> Notifications</button>
+                    <button type="button" data-tab="logs"><i class="fa-solid fa-clipboard-list"></i> Audit Logs</button>
                 </div>
 
-                <!-- 1. ALL ACCOUNTS TABLE -->
-                <div class="table-responsive" id="table-accounts">
-                    <table>
-                        <thead>
-                            <tr><th>ID</th><th>First Name</th><th>Middle Name</th><th>Last Name</th><th>Age</th><th>Gender</th><th>Address</th><th>Contact</th><th>Email</th><th>User Type</th><th>Status</th><th>Password</th><th>Actions</th></tr>
-                        </thead>
-                        <tbody id="accounts-tbody"></tbody>
-                    </table>
+                <div class="db-section-toolbar">
+                    <label class="db-search" for="db-record-search">
+                        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                        <input id="db-record-search" type="search" placeholder="Search this section..." autocomplete="off">
+                    </label>
+                    <div class="db-date-filters" id="db-date-filters">
+                        <label for="db-date-from">From</label><input id="db-date-from" type="date">
+                        <label for="db-date-to">To</label><input id="db-date-to" type="date">
+                    </div>
+                    <label class="db-category-filter hidden" id="db-category-filter" for="db-review-category">
+                        Category
+                        <select id="db-review-category">
+                            <option value="">All</option>
+                            <option value="open">To review</option>
+                            <option value="resolved">Reviewed</option>
+                        </select>
+                    </label>
+                    <span class="db-result-count" id="db-result-count" aria-live="polite"></span>
+                    <span class="db-live-status" id="db-live-status" aria-live="polite">Connecting to live data...</span>
                 </div>
 
-                <!-- 2. PENDING ACCOUNTS TABLE -->
-                <div class="table-responsive hidden" id="table-pending-accounts">
-                    <table>
-                        <thead><tr><th>ID</th><th>First Name</th><th>Last Name</th><th>Email</th><th>User Type</th><th>Contact</th><th>Actions</th></tr></thead>
-                        <tbody id="pending-accounts-tbody"></tbody>
-                    </table>
+                <div class="db-section" id="table-accounts">
+                    <div class="db-record-grid" id="cards-accounts"></div>
+                    <nav class="db-pagination" id="pagination-accounts" aria-label="Users pages"></nav>
+                    <div class="data-export-source"><table></table></div>
                 </div>
-
-                <!-- 3. PENDING POSTS TABLE -->
-                <div class="table-responsive hidden" id="table-pending-posts">
-                    <table>
-                        <thead><tr><th>Post ID</th><th>Author</th><th>Content Preview</th><th>Type</th><th>Actions</th></tr></thead>
-                        <tbody id="pending-posts-tbody"></tbody>
-                    </table>
+                <div class="db-section hidden" id="table-complaints">
+                    <div class="db-record-grid" id="cards-complaints"></div>
+                    <div class="data-export-source"><table></table></div>
                 </div>
-
-                <!-- 4. USER REPORTS TABLE -->
-                <div class="table-responsive hidden" id="table-reports">
-                    <table>
-                        <thead><tr><th>Report ID</th><th>Reported User</th><th>Reason</th><th>Reported By</th><th>Actions</th></tr></thead>
-                        <tbody id="reports-tbody"></tbody>
-                    </table>
+                <div class="db-section hidden" id="table-farmer-applications">
+                    <div class="db-record-grid" id="cards-farmer-applications"></div>
+                    <div class="data-export-source"><table></table></div>
                 </div>
-
-                <div class="table-responsive hidden" id="table-complaints">
-                    <table>
-                        <thead><tr><th>Complaint ID</th><th>Name</th><th>Email</th><th>Complaint</th><th>Submitted</th><th>Actions</th></tr></thead>
-                        <tbody id="complaints-tbody"></tbody>
-                    </table>
+                <div class="db-section hidden" id="table-products">
+                    <div class="db-record-grid" id="cards-products"></div>
+                    <div class="data-export-source"><table></table></div>
                 </div>
-
-                <!-- 5. NEW TABLES (From Schema Images) -->
-
-                <!-- FARMS -->
-                <div class="table-responsive hidden" id="table-farms">
-                    <table>
-                        <thead><tr><th>Farm ID</th><th>Farmer ID</th><th>Farm Name</th><th>Address</th><th>Province</th><th>Municipality</th><th>Barangay</th><th>Latitude</th><th>Longitude</th><th>Farm Size</th><th>Unit</th><th>Created At</th></tr></thead>
-                        <tbody>
-                            <tr><td>1</td><td>2</td><td>San Jose Farm</td><td>123 Farm Road</td><td>Nueva Ecija</td><td>San Jose</td><td>Poblacion</td><td>15.1234</td><td>120.9876</td><td>5.5</td><td>Hectares</td><td>Oct 24, 2024</td></tr>
-                            <tr><td>2</td><td>5</td><td>Green Valley Farms</td><td>456 Mountain View</td><td>Benguet</td><td>La Trinidad</td><td>Balili</td><td>16.4521</td><td>120.5874</td><td>3.2</td><td>Hectares</td><td>Oct 25, 2024</td></tr>
-                        </tbody>
-                    </table>
+                <div class="db-section hidden" id="table-farm-registry">
+                    <div class="db-record-grid" id="cards-farm-registry"></div>
+                    <div class="data-export-source"><table></table></div>
                 </div>
-
-                <!-- PRODUCTS -->
-                <div class="table-responsive hidden" id="table-products">
-                    <table>
-                        <thead><tr><th>Product ID</th><th>Product Name</th><th>Category</th><th>Description</th><th>Unit of Measure</th><th>Created At</th></tr></thead>
-                        <tbody id="products-tbody"></tbody>
-                    </table>
+                <div class="db-section hidden" id="table-catalog">
+                    <div class="db-record-grid" id="cards-catalog"></div>
+                    <div class="data-export-source"><table></table></div>
                 </div>
-
-                <!-- PRODUCT BATCHES -->
-                <div class="table-responsive hidden" id="table-batches">
-                    <table>
-                        <thead><tr><th>Batch ID</th><th>Batch Code</th><th>Product ID</th><th>Farm ID</th><th>Quantity</th><th>Unit</th><th>Harvest Date</th><th>Product Image</th><th>Current Status</th><th>Created At</th><th>Updated At</th></tr></thead>
-                        <tbody>
-                            <tr><td>1001</td><td>BATCH-RICE-01</td><td>101</td><td>1</td><td>500</td><td>kg</td><td>2024-10-15</td><td>rice.jpg</td><td><span class="badge" style="background: rgba(16,185,129,0.2); color: var(--primary);">available_at_market</span></td><td>Oct 15, 2024</td><td>Oct 18, 2024</td></tr>
-                            <tr><td>1002</td><td>BATCH-TOM-02</td><td>102</td><td>2</td><td>200</td><td>kg</td><td>2024-10-18</td><td>tomatoes.jpg</td><td><span class="badge" style="background: rgba(245,158,11,0.2); color: var(--warning);">in_transit</span></td><td>Oct 18, 2024</td><td>Oct 19, 2024</td></tr>
-                        </tbody>
-                    </table>
+                <div class="db-section hidden" id="table-batches">
+                    <div class="db-record-grid" id="cards-batches"></div>
+                    <div class="data-export-source"><table></table></div>
                 </div>
-
-                <!-- HARVEST RECORDS -->
-                <div class="table-responsive hidden" id="table-harvests">
-                    <table>
-                        <thead><tr><th>Harvest ID</th><th>Batch ID</th><th>Farmer ID</th><th>Harvest Date</th><th>Quantity Harvested</th><th>Quality Grade</th><th>Notes</th><th>Created At</th></tr></thead>
-                        <tbody>
-                            <tr><td>501</td><td>1001</td><td>2</td><td>2024-10-15</td><td>500.00</td><td>Grade A</td><td>Good weather during harvest.</td><td>Oct 15, 2024</td></tr>
-                        </tbody>
-                    </table>
+                <div class="db-section hidden" id="table-harvests">
+                    <div class="db-record-grid" id="cards-harvests"></div>
+                    <div class="data-export-source"><table></table></div>
                 </div>
-
-                <!-- QR CODES -->
-                <div class="table-responsive hidden" id="table-qrcodes">
-                    <table>
-                        <thead><tr><th>QR ID</th><th>Batch ID</th><th>QR Token</th><th>QR Image Path</th><th>Is Active</th><th>Created At</th></tr></thead>
-                        <tbody>
-                            <tr><td>901</td><td>1001</td><td>tk_8f7a9b2c1d</td><td>/images/qr/901.png</td><td><span class="badge" style="background: rgba(16,185,129,0.2); color: var(--primary);">1 (Active)</span></td><td>Oct 15, 2024</td></tr>
-                        </tbody>
-                    </table>
+                <div class="db-section hidden" id="table-shipments">
+                    <div class="db-record-grid" id="cards-shipments"></div>
+                    <div class="data-export-source"><table></table></div>
                 </div>
-
-                <!-- TRACEABILITY LOGS -->
-                <div class="table-responsive hidden" id="table-traceability">
-                    <table>
-                        <thead><tr><th>Log ID</th><th>Batch ID</th><th>Updated By</th><th>Status</th><th>Location Name</th><th>Latitude</th><th>Longitude</th><th>Remarks</th><th>Created At</th></tr></thead>
-                        <tbody>
-                            <tr><td>3001</td><td>1001</td><td>2</td><td><span class="badge" style="background: rgba(59,130,246,0.2); color: var(--blue);">harvested</span></td><td>San Jose Farm</td><td>15.1234</td><td>120.9876</td><td>Initial harvest</td><td>Oct 15, 2024</td></tr>
-                            <tr><td>3002</td><td>1001</td><td>5</td><td><span class="badge" style="background: rgba(245,158,11,0.2); color: var(--warning);">in_transit</span></td><td>Transport Vehicle</td><td>15.2000</td><td>120.9000</td><td>En route to market</td><td>Oct 16, 2024</td></tr>
-                            <tr><td>3003</td><td>1001</td><td>8</td><td><span class="badge" style="background: rgba(16,185,129,0.2); color: var(--primary);">available_at_market</span></td><td>Public Market</td><td>15.3000</td><td>120.8500</td><td>Received at stall</td><td>Oct 17, 2024</td></tr>
-                        </tbody>
-                    </table>
+                <div class="db-section hidden" id="table-qrcodes">
+                    <div class="db-record-grid" id="cards-qrcodes"></div>
+                    <nav class="db-pagination" id="pagination-qrcodes" aria-label="QR code pages"></nav>
+                    <div class="data-export-source"><table></table></div>
                 </div>
-
-                <!-- SHIPMENTS -->
-                <div class="table-responsive hidden" id="table-shipments">
-                    <table>
-                        <thead><tr><th>Shipment ID</th><th>Batch ID</th><th>Transporter ID</th><th>Vehicle Number</th><th>Origin</th><th>Destination</th><th>Dispatch Time</th><th>Delivery Time</th><th>Status</th><th>Remarks</th><th>Created At</th></tr></thead>
-                        <tbody>
-                            <tr><td>701</td><td>1001</td><td>5</td><td>ABC-1234</td><td>San Jose Farm</td><td>Public Market</td><td>2024-10-16 08:00</td><td>2024-10-16 10:30</td><td><span class="badge" style="background: rgba(16,185,129,0.2); color: var(--primary);">delivered</span></td><td>Handled with care</td><td>Oct 16, 2024</td></tr>
-                        </tbody>
-                    </table>
+                <div class="db-section hidden" id="table-reports">
+                    <div class="db-record-grid" id="cards-reports"></div>
+                    <div class="data-export-source"><table></table></div>
                 </div>
-
-                <!-- MARKETS -->
-                <div class="table-responsive hidden" id="table-markets">
-                    <table>
-                        <thead><tr><th>Market ID</th><th>Market Name</th><th>Manager ID</th><th>Address</th><th>Province</th><th>Municipality</th><th>Contact Number</th><th>Latitude</th><th>Longitude</th><th>Created At</th></tr></thead>
-                        <tbody>
-                            <tr><td>11</td><td>Cabanatuan Public Market</td><td>8</td><td>Market Area, Cabanatuan</td><td>Nueva Ecija</td><td>Cabanatuan City</td><td>09123456789</td><td>15.4861</td><td>120.9686</td><td>Jan 10, 2024</td></tr>
-                        </tbody>
-                    </table>
+                <div class="db-section hidden" id="table-orders">
+                    <div class="db-record-grid" id="cards-orders"></div>
+                    <div class="data-export-source"><table></table></div>
                 </div>
-
-                <!-- NOTIFICATIONS -->
-                <div class="table-responsive hidden" id="table-notifications">
-                    <table>
-                        <thead><tr><th>Notification ID</th><th>User ID</th><th>Title</th><th>Message</th><th>Channel</th><th>Delivery Status</th><th>Created At</th></tr></thead>
-                        <tbody>
-                            <tr><td>8001</td><td>2</td><td>Harvest Approved</td><td>Your batch #1001 is now available at the market.</td><td><span class="badge" style="background: rgba(139,92,246,0.2); color: var(--purple);">system</span></td><td><span class="badge" style="background: rgba(16,185,129,0.2); color: var(--primary);">read</span></td><td>Oct 17, 2024</td></tr>
-                        </tbody>
-                    </table>
+                <div class="db-section hidden" id="table-notifications">
+                    <div class="db-record-grid" id="cards-notifications"></div>
+                    <nav class="db-pagination" id="pagination-notifications" aria-label="Notification pages"></nav>
+                    <div class="data-export-source"><table></table></div>
                 </div>
-
-                <!-- WEATHER RECORDS -->
-                <div class="table-responsive hidden" id="table-weather">
-                    <table>
-                        <thead><tr><th>Weather ID</th><th>Farm ID</th><th>Harvest ID</th><th>Temperature</th><th>Humidity</th><th>Condition</th><th>Rainfall (mm)</th><th>Recorded At</th></tr></thead>
-                        <tbody>
-                            <tr><td>6001</td><td>1</td><td>501</td><td>32.5</td><td>75.0</td><td>Sunny</td><td>0.0</td><td>Oct 15, 2024 08:00</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- AUDIT LOGS (System Logs) -->
-                <div class="table-responsive hidden" id="table-logs">
-                    <table>
-                        <thead><tr><th>Audit ID</th><th>User ID</th><th>Action</th><th>Entity Type</th><th>Entity ID</th><th>Details</th><th>IP Address</th><th>Created At</th></tr></thead>
-                        <tbody id="logs-tbody"></tbody>
-                    </table>
+                <div class="db-section hidden" id="table-logs">
+                    <div class="db-record-grid" id="cards-logs"></div>
+                    <nav class="db-pagination" id="pagination-logs" aria-label="Audit log pages"></nav>
+                    <div class="data-export-source"><table></table></div>
                 </div>
 
             </div>
@@ -382,12 +360,21 @@
                 <div style="margin-bottom: 16px;">
                     <button class="btn-primary" onclick="emailSalesReport()"><i class="fa-solid fa-envelope"></i> Email sales report (orders CSV attached)</button>
                 </div>
+                <div style="background:var(--bg-main);padding:12px 16px;border-radius:8px;border:1px solid var(--border-color);margin-bottom:16px;color:var(--text-muted);font-size:.9rem;">
+                    <i class="fa-solid fa-calendar-days" style="color:var(--primary);"></i>
+                    Choose a start and end date when exporting a data report. The introduction letter includes editable placeholders for names, dates, and contact details.
+                </div>
                 <div style="background: var(--bg-surface); padding: 30px; border-radius: 12px; border: 1px solid var(--border-color); margin-bottom: 20px;">
                     <h3 style="font-size: 1.2rem; margin-bottom: 10px;"><i class="fa-solid fa-file-csv" style="color: var(--primary);"></i> Export System Data</h3>
                     <p style="color: var(--text-muted); font-size: 0.9rem;">Extract and download the latest database records in CSV format. These files can be opened and analyzed using Microsoft Excel or Google Sheets. Select a table below to generate its report.</p>
                 </div>
 
                 <div class="report-grid">
+                    <div class="report-card" data-report-key="introduction-letter">
+                        <i class="fa-solid fa-file-signature"></i>
+                        <h3>AgriTrace Introduction Letter</h3>
+                        <p>A formal, branded letter introducing our traceability services and core principles, with fill-in placeholders.</p>
+                    </div>
                     <!-- Dynamic Data Reports -->
                     <div class="report-card" data-report-key="users">
                         <i class="fa-solid fa-users"></i>
@@ -395,22 +382,10 @@
                         <p>Registered users, personal details, and statuses.</p>
                         <button class="btn-export" onclick="downloadTableAsCSV('table-accounts', 'AgriTrace_Users_Report')"><i class="fa-solid fa-download"></i> Download CSV</button>
                     </div>
-                    <div class="report-card" data-report-key="pending-accounts">
-                        <i class="fa-solid fa-user-clock"></i>
-                        <h3>Pending Accounts</h3>
-                        <p>Accounts awaiting admin approval.</p>
-                        <button class="btn-export" onclick="downloadTableAsCSV('table-pending-accounts', 'AgriTrace_Pending_Accounts')"><i class="fa-solid fa-download"></i> Download CSV</button>
-                    </div>
-                    <div class="report-card" data-report-key="pending-posts">
-                        <i class="fa-solid fa-newspaper"></i>
-                        <h3>Pending Posts</h3>
-                        <p>Posts and products awaiting moderation.</p>
-                        <button class="btn-export" onclick="downloadTableAsCSV('table-pending-posts', 'AgriTrace_Pending_Posts')"><i class="fa-solid fa-download"></i> Download CSV</button>
-                    </div>
                     <div class="report-card" data-report-key="reports">
                         <i class="fa-solid fa-triangle-exclamation"></i>
                         <h3>User Reports</h3>
-                        <p>Active reports submitted against users.</p>
+                        <p>Review user complaints and reported posts. Remove posts that violate community rules or dismiss reports without affecting the post.</p>
                         <button class="btn-export" onclick="downloadTableAsCSV('table-reports', 'AgriTrace_User_Reports')"><i class="fa-solid fa-download"></i> Download CSV</button>
                     </div>
 
@@ -517,10 +492,9 @@
                     <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
                         <input type="file" id="cloud-file" accept="image/*,application/pdf" style="flex: 1; min-width: 200px;">
                         <button class="btn-primary" type="button" onclick="uploadCloudFile()"><i class="fa-solid fa-upload"></i> Upload</button>
-                        <button class="btn-primary" type="button" onclick="connectPuter()"><i class="fa-solid fa-link"></i> Connect / Reconnect Puter</button>
                         <span id="cloud-driver" class="status-pill">—</span>
                     </div>
-                    <p class="field-help">Photos and PDFs up to 8 MB are stored in the connected Puter account.</p>
+                    <p class="field-help">Admin uploads are stored in the private Upstash Blob bucket; community and profile media use the public bucket.</p>
                 </section>
                 <section class="form-card" style="margin-top: 16px;">
                     <h3><i class="fa-solid fa-folder-open" style="color: var(--primary);"></i> Files</h3>
@@ -537,7 +511,19 @@
             </div>
         </main>
     </div>
-
+    <div class="modal-overlay trace-form-modal" id="trace-form-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="trace-form-title">Add traceability record</h2>
+                <button class="close-btn" type="button" onclick="closeModal('trace-form-modal')" aria-label="Close form"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="trace-form" onsubmit="saveTraceabilityRecord(event)">
+                <p class="trace-workflow-help" id="trace-form-help"></p>
+                <div class="trace-form-grid" id="trace-form-fields"></div>
+                <button type="submit" class="btn-primary" style="width: 100%; margin-top: 20px;" id="trace-form-submit">Save record</button>
+            </form>
+        </div>
+    </div>
     <!-- CRUD MODAL -->
     <div class="modal-overlay crud-modal" id="crud-modal">
         <div class="modal">
@@ -560,6 +546,44 @@
                     <div class="input-group"><label>Password</label><input type="password" id="crud-pass" autocomplete="new-password"></div>
                 </div>
                 <button type="submit" class="btn-primary" style="width: 100%; margin-top: 20px;">Save Account</button>
+            </form>
+        </div>
+    </div>
+    <div class="modal-overlay detail-modal" id="record-detail-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="record-detail-title">Record details</h2>
+                <button class="close-btn" type="button" onclick="closeModal('record-detail-modal')" aria-label="Close details"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <dl class="db-detail-list" id="record-detail-list"></dl>
+        </div>
+    </div>
+    <div class="modal-overlay detail-modal" id="post-report-modal" role="dialog" aria-modal="true" aria-labelledby="post-report-title">
+        <div class="modal" style="max-width:760px;max-height:90vh;overflow:auto;">
+            <div class="modal-header">
+                <h2 id="post-report-title">Review reported post</h2>
+                <button class="close-btn" type="button" onclick="closeModal('post-report-modal')" aria-label="Close report"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="post-report-modal-content" style="display:grid;gap:8px;"></div>
+            <div id="post-report-actions" style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:18px;"></div>
+        </div>
+    </div>
+    <div class="modal-overlay detail-modal" id="report-date-modal" role="dialog" aria-modal="true" aria-labelledby="report-date-title">
+        <div class="modal" style="max-width:480px;">
+            <div class="modal-header">
+                <h2 id="report-date-title">Choose report dates</h2>
+                <button class="close-btn" type="button" onclick="closeReportDateDialog()" aria-label="Close date selection"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p style="color:var(--text-muted);margin-bottom:16px;">Select the inclusive date range for the records to export. Leave both fields blank for all available records.</p>
+            <form id="report-date-form">
+                <div class="form-grid">
+                    <div class="input-group"><label for="report-date-from">From</label><input type="date" id="report-date-from"></div>
+                    <div class="input-group"><label for="report-date-to">To</label><input type="date" id="report-date-to"></div>
+                </div>
+                <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:20px;">
+                    <button class="btn-muted" type="button" onclick="closeReportDateDialog()">Cancel</button>
+                    <button class="btn-primary" type="submit"><i class="fa-solid fa-download"></i> Generate report</button>
+                </div>
             </form>
         </div>
     </div>

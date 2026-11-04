@@ -162,6 +162,10 @@ function usernameFromEmail(email) {
     return base + Math.floor(1000 + Math.random() * 9000);
 }
 function startSocialLogin(provider, intent) {
+    if (provider !== 'google' || !['login', 'register'].includes(intent)) {
+        toast('Unsupported sign-in provider.', 'error');
+        return;
+    }
     const role = intent === 'register' ? document.getElementById('reg-type').value : 'farmer';
     const query = new URLSearchParams({ intent, role });
     location.href = `${API_BASE}/oauth/${encodeURIComponent(provider)}/start?${query}`;
@@ -180,7 +184,7 @@ function handleSocialReturn() {
 
     const query = new URLSearchParams(location.search);
     if (query.get('social_status') === 'pending') {
-        toast('Registration received. You can sign in after an administrator approves your account.', 'success');
+        toast('Registration is being processed. Please try again or contact the administrator.', 'info');
     } else if (query.get('social_error')) {
         toast(query.get('social_error'), 'error');
     }
@@ -213,7 +217,7 @@ async function handleRegister(event) {
     const button = event.target.querySelector('button[type=submit]');
     button.disabled = true;
     try {
-        await api('/create', {
+        const result = await api('/create', {
             method: 'POST',
             auth: false,
             body: {
@@ -230,7 +234,7 @@ async function handleRegister(event) {
                 role
             }
         });
-        toast('Registration received. You can sign in after an administrator approves your account.', 'success');
+        toast(result.message || 'Your account has been created. You can sign in now.', 'success');
         document.getElementById('login-email').value = email;
         document.getElementById('register-form').reset();
         toggleAuth('login');

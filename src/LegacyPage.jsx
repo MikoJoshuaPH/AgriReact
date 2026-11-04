@@ -73,17 +73,8 @@ export default function LegacyPage({ page }) {
     const previousTitle = document.title;
     const previousBodyClass = document.body.className;
     const previousApiBaseUrl = window.AGRITRACE_API_BASE_URL;
-    const previousPuter = window.puter;
-    const previousGetPuterClient = window.getPuterClient;
     const previousGenerateQrCode = window.generateQrCode;
     window.AGRITRACE_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
-    window.getPuterClient = async () => {
-      if (!window.puter) {
-        const module = await import('@heyputer/puter.js');
-        window.puter = module.puter;
-      }
-      return window.puter;
-    };
     window.AGRITRACE_GEOAPIFY_KEY = import.meta.env.VITE_GEOAPIFY_API_KEY || '';
     window.generateQrCode = (text) => QRCode.toDataURL(text, {
       width: 240,
@@ -147,16 +138,6 @@ export default function LegacyPage({ page }) {
         delete window.generateQrCode;
       } else {
         window.generateQrCode = previousGenerateQrCode;
-      }
-      if (previousPuter === undefined) {
-        delete window.puter;
-      } else {
-        window.puter = previousPuter;
-      }
-      if (previousGetPuterClient === undefined) {
-        delete window.getPuterClient;
-      } else {
-        window.getPuterClient = previousGetPuterClient;
       }
       document.title = previousTitle;
       document.body.className = previousBodyClass;

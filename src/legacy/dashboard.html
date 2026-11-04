@@ -8,20 +8,87 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* Dashboard-only pieces. Shared components live in public/styled.css. */
-        .pending-item {
-            display: flex;
-            gap: 14px;
-            padding: 14px;
-            background: var(--bg-main);
-            border: 1px solid var(--border-color);
-            border-left: 3px solid var(--warning);
-            border-radius: var(--radius-sm);
-            margin-bottom: 10px;
+        .farmer-trace-form-grid { display: grid; gap: 14px; }
+        .farmer-trace-form-grid .full-width { grid-column: 1 / -1; }
+        .farmer-trace-button-spinner {
+            width: 1em;
+            height: 1em;
+            border: 2px solid currentColor;
+            border-right-color: transparent;
+            border-radius: 50%;
+            display: inline-block;
+            animation: farmer-trace-spin 0.7s linear infinite;
         }
-        .pending-status { font-size: 0.74rem; color: var(--warning); font-weight: 600; margin-top: 6px; display: flex; align-items: center; gap: 6px; }
-        .pending-item img, .pending-item > div:first-child { flex-shrink: 0; }
+        @keyframes farmer-trace-spin { to { transform: rotate(360deg); } }
+        .farmer-trace-loading { color: var(--text-muted); padding: 12px 0; }
+        .farm-location-picker { min-width: 0; }
+        .farm-location-help { color: var(--text-muted); font-size: 0.84rem; margin: 4px 0 10px; }
+        .farm-location-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+        #farm-location-status { color: var(--text-muted); font-size: 0.82rem; }
+        .farm-location-map { height: 300px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); z-index: 0; }
+        .farmer-trace-form-grid textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            background: var(--bg-main);
+            color: var(--text-main);
+            resize: vertical;
+        }
+        .sales-chart { display: grid; grid-template-columns: repeat(12, minmax(32px, 1fr)); align-items: end; gap: 8px; min-height: 190px; padding: 20px 10px 0; border-bottom: 1px solid var(--border-color); }
+        .sales-chart-column { display: flex; height: 170px; min-width: 0; flex-direction: column; justify-content: end; align-items: center; gap: 7px; }
+        .sales-chart-bar { width: min(100%, 28px); min-height: 3px; border-radius: 6px 6px 0 0; background: linear-gradient(180deg, var(--primary), color-mix(in srgb, var(--primary) 55%, #86efac)); }
+        .sales-chart-value { color: var(--text-muted); font-size: 0.65rem; text-align: center; white-space: nowrap; }
+        .sales-chart-label { color: var(--text-muted); font-size: 0.68rem; }
+        .farmer-profile-header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+        .farmer-profile-header img { width: 76px; height: 76px; border-radius: 50%; object-fit: cover; }
+        .farmer-profile-content { display: grid; gap: 16px; }
+        .farmer-profile-content .widget { margin: 0; }
+        .trace-hero { display:flex; align-items:flex-start; justify-content:space-between; gap:20px; padding:24px; border:1px solid var(--border-color); border-radius:var(--radius-lg); background:linear-gradient(135deg, var(--bg-surface), color-mix(in srgb, var(--primary) 12%, var(--bg-surface))); }
+        .trace-eyebrow { color:var(--primary); font-size:.72rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; margin-bottom:6px; }
+        .trace-hero h2 { font-size:2rem; margin-bottom:8px; }
+        .trace-hero p { max-width:650px; color:var(--text-muted); }
+        .trace-actions { display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end; }
+        .trace-stats { display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:12px; }
+        .trace-stat { padding:16px; border:1px solid var(--border-color); border-radius:var(--radius-md); background:var(--bg-surface); }
+        .trace-stat strong { display:block; font-size:1.55rem; color:var(--text-main); }
+        .trace-stat span { color:var(--text-muted); font-size:.78rem; }
+        .trace-section { border:1px solid var(--border-color); border-radius:var(--radius-md); background:var(--bg-surface); overflow:hidden; }
+        .trace-section-header { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:16px 18px; border-bottom:1px solid var(--border-color); }
+        .trace-section-header p { color:var(--text-muted); font-size:.78rem; }
+        .trace-section .stack-list { padding:0 18px; }
+        .trace-badge { border-radius:999px; padding:3px 8px; font-size:.7rem; font-weight:700; background:var(--bg-hover); color:var(--primary); }
+        .catalog-match { display:none; padding:10px 12px; border:1px solid color-mix(in srgb, var(--primary) 50%, var(--border-color)); border-radius:var(--radius-sm); background:color-mix(in srgb, var(--primary) 10%, var(--bg-main)); font-size:.82rem; }
+        .catalog-match.visible { display:block; }
+        .search-results-section { margin-top: 20px; }
+        .search-results-section h3 { margin-bottom: 12px; color: var(--text-main); }
+        .search-farm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+        .search-farm-card { padding: 16px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-surface); cursor: pointer; }
+        .search-farm-card:hover { border-color: var(--primary); }
+        .search-farm-card h4 { margin-bottom: 6px; color: var(--text-main); }
+        .search-farm-card p { color: var(--text-muted); font-size: .82rem; }
+        .search-farm-card button { margin-top: 12px; }
+        .product-form-grid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; }
+        .product-form-grid .wide { grid-column:1 / -1; }
+        @media (max-width: 760px) { .trace-hero { flex-direction:column; } .trace-actions { justify-content:flex-start; } .trace-stats { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+        @media (max-width: 520px) { .product-form-grid { grid-template-columns:1fr; } .product-form-grid .wide { grid-column:auto; } }
 
         .cart-item-actions { display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 14px; }
+        .order-actions { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
+        .order-terminal { margin:12px 0; padding:10px 12px; border-radius:8px; background:var(--bg-hover); color:var(--text-main); }
+        .order-terminal.rejected, .order-terminal.cancelled { border-left:4px solid var(--danger); }
+        .order-progress { margin:14px 0; padding:12px; border:1px solid var(--border-color); border-radius:10px; background:var(--bg-main); }
+        .order-progress ol { display:flex; gap:0; list-style:none; overflow-x:auto; padding:0 0 8px; margin:0; }
+        .order-progress li { position:relative; flex:1 0 90px; display:flex; flex-direction:column; align-items:center; gap:5px; text-align:center; color:var(--text-muted); font-size:.75rem; }
+        .order-progress li:not(:last-child)::after { content:""; position:absolute; height:2px; left:calc(50% + 15px); right:calc(-50% + 15px); top:13px; background:var(--border-color); }
+        .order-progress li.done:not(:last-child)::after { background:var(--primary); }
+        .order-progress-icon { z-index:1; display:grid; place-items:center; width:27px; height:27px; border:2px solid var(--border-color); border-radius:50%; background:var(--bg-surface); }
+        .order-progress li.done { color:var(--primary); }
+        .order-progress li.done .order-progress-icon { border-color:var(--primary); background:var(--primary); color:white; }
+        .order-progress li.current { color:var(--text-main); font-weight:700; }
+        .order-progress li.current .order-progress-icon { border-color:var(--primary); color:var(--primary); }
+        .order-progress time { font-size:.62rem; font-weight:400; white-space:nowrap; }
+        .order-progress p { margin:4px 0 0; color:var(--text-muted); font-size:.8rem; }
         .delete-btn { color: var(--danger); cursor: pointer; transition: transform 0.15s; padding: 4px; }
         .delete-btn:hover { transform: scale(1.15); }
 
@@ -31,7 +98,7 @@
         @media (max-width: 640px) {
             .post-modal .post-input-area > div { flex-wrap: wrap; }
             .post-modal .post-input-area > div > input { min-width: 0; }
-            .pending-item { flex-direction: row; }
+            .sales-chart { gap: 3px; padding-right: 0; padding-left: 0; }
         }
     </style>
 </head>
@@ -48,13 +115,9 @@
                 <a href="javascript:void(0)" onclick="switchView('feed')" class="nav-item active" data-view="feed"><i class="fa-solid fa-house"></i> Home</a>
                 <a href="javascript:void(0)" onclick="switchView('market')" class="nav-item" data-view="market"><i class="fa-solid fa-store"></i> Marketplace</a>
                 <a href="javascript:void(0)" onclick="switchView('farmer-hub')" class="nav-item" data-view="farmer-hub"><i class="fa-solid fa-tractor"></i> Farmer Hub</a>
+                <a href="javascript:void(0)" onclick="switchView('farmer-application')" class="nav-item buyer-only hidden" data-view="farmer-application"><i class="fa-solid fa-file-signature"></i> Become a Farmer</a>
+                <a href="javascript:void(0)" onclick="switchView('farmer-trace')" class="nav-item farmer-only hidden" data-view="farmer-trace"><i class="fa-solid fa-seedling"></i> My Traceability</a>
                 <a href="javascript:void(0)" onclick="switchView('analytics')" class="nav-item" data-view="analytics"><i class="fa-solid fa-chart-line"></i> Analytics</a>
-            </div>
-
-            <!-- PENDINGS SECTION -->
-            <div class="nav-section">
-                <div class="nav-title">Pendings</div>
-                <a href="javascript:void(0)" onclick="openPendingModal()" class="nav-item"><i class="fa-solid fa-file-circle-exclamation"></i> Pending Posts <span class="badge hidden" id="pending-count" style="background: var(--warning);">0</span></a>
             </div>
 
             <!-- ACCOUNT SECTION -->
@@ -77,7 +140,7 @@
 
             <!-- PROFILE BOTTOM -->
             <div class="profile-bottom" onclick="navigateToProfile()">
-                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80" alt="User" id="sidebar-profile-pic">
+                <img src="/default-avatar.jpg" alt="User" id="sidebar-profile-pic">
                 <div class="profile-info">
                     <h4 id="sidebar-profile-name">Loading...</h4>
                     <p>View Profile</p>
@@ -92,7 +155,7 @@
                     <button class="menu-toggle" onclick="toggleSidebar()" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
                     <div class="search-bar" style="flex: 1;">
                         <i class="fa-solid fa-magnifying-glass"></i>
-                        <input type="search" id="global-search" placeholder="Search products, farmers, or locations..." oninput="onSearch(this.value)">
+                        <input type="search" id="global-search" placeholder="Search products, farmers, farms, or categories..." oninput="onSearch(this.value)">
                     </div>
                 </div>
                 <div class="topbar-right">
@@ -103,10 +166,28 @@
                 </div>
             </header>
 
+            <!-- CROSS-SECTION SEARCH RESULTS -->
+            <div id="view-search-results" class="view-section">
+                <h2 style="color: var(--text-main);">Search results</h2>
+                <p id="search-results-summary" style="color: var(--text-muted); margin: 6px 0 18px;"></p>
+                <section class="search-results-section">
+                    <h3><i class="fa-solid fa-basket-shopping"></i> Marketplace products</h3>
+                    <div class="market-grid-layout" id="search-products"></div>
+                </section>
+                <section class="search-results-section">
+                    <h3><i class="fa-solid fa-tractor"></i> FarmerHub profiles</h3>
+                    <div class="farmer-grid" id="search-farmers"></div>
+                </section>
+                <section class="search-results-section">
+                    <h3><i class="fa-solid fa-seedling"></i> Registered farms</h3>
+                    <div class="search-farm-grid" id="search-registered-farms"></div>
+                </section>
+            </div>
+
             <!-- FEED VIEW -->
             <div id="view-feed" class="view-section active">
                 <div class="create-post-trigger" onclick="openPostModal()">
-                    <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80" alt="User" id="post-avatar">
+                    <img src="/default-avatar.jpg" alt="User" id="post-avatar">
                     <input type="text" id="post-placeholder" placeholder="What's on your mind?" readonly>
                 </div>
 
@@ -132,6 +213,7 @@
                     <button class="cat-btn" onclick="filterMarket('Meats', this)">Meats</button>
                     <button class="cat-btn" onclick="filterMarket('Grains', this)">Grains</button>
                     <button class="cat-btn" onclick="filterMarket('Dairy', this)">Dairy</button>
+                    <button class="cat-btn" onclick="filterMarket('Not Available', this)">Not Available</button>
                 </div>
 
                 <div class="market-grid-layout" id="marketplace-container"></div>
@@ -147,6 +229,59 @@
                 </div>
 
                 <div class="farmer-grid" id="farmer-container"></div>
+            </div>
+
+            <div id="view-farmer-application" class="view-section buyer-only hidden">
+                <div style="max-width: 760px;">
+                    <h2 style="color: var(--text-main);">Become a Farmer</h2>
+                    <p style="color: var(--text-muted); margin: 8px 0 18px;">Submit your registered farm information for administrator review. Your current buyer account and order history will remain unchanged until approval.</p>
+                    <section class="form-card">
+                        <div id="farmer-application-status" class="field-help" role="status" style="margin-bottom: 14px;"></div>
+                        <form id="farmer-application-form" onsubmit="submitFarmerApplication(event)">
+                            <div class="form-grid">
+                                <div class="field full-width"><label for="farmer-application-farm-name">Farm name</label><input id="farmer-application-farm-name" name="farm_name" maxlength="150" required></div>
+                                <div class="field full-width"><label for="farmer-application-description">Farm description</label><textarea id="farmer-application-description" name="farm_description" maxlength="5000" rows="3"></textarea></div>
+                                <div class="field full-width"><label for="farmer-application-address">Farm address (private)</label><textarea id="farmer-application-address" name="farm_address" maxlength="1000" rows="2"></textarea></div>
+                                <div class="field"><label for="farmer-application-province">Province</label><input id="farmer-application-province" name="province" maxlength="100"></div>
+                                <div class="field"><label for="farmer-application-municipality">Municipality</label><input id="farmer-application-municipality" name="municipality" maxlength="100"></div>
+                                <div class="field"><label for="farmer-application-barangay">Barangay</label><input id="farmer-application-barangay" name="barangay" maxlength="100"></div>
+                                <div class="field"><label for="farmer-application-size">Farm size</label><input id="farmer-application-size" name="farm_size" type="number" min="0.01" step="0.01"></div>
+                                <div class="field"><label for="farmer-application-size-unit">Size unit</label><input id="farmer-application-size-unit" name="farm_size_unit" maxlength="20" placeholder="hectares"></div>
+                            </div>
+                            <button id="farmer-application-submit" class="btn-primary" type="submit">Submit application</button>
+                        </form>
+                    </section>
+                </div>
+            </div>
+
+            <div id="view-farmer-trace" class="view-section">
+                <div class="trace-hero">
+                    <div>
+                        <div class="trace-eyebrow">Farmer workspace</div>
+                        <h2>From harvest to marketplace</h2>
+                        <p>Keep every product connected to a registered farm, harvest, and batch. Your exact residential address stays private; buyers only see your farm name and general location.</p>
+                    </div>
+                    <div class="trace-actions">
+                        <button class="btn-muted" type="button" data-trace-open="farms"><i class="fa-solid fa-tractor"></i> Register farm</button>
+                        <button class="btn-primary" type="button" data-trace-open="batches"><i class="fa-solid fa-layer-group"></i> Create batch</button>
+                        <button class="btn-muted" type="button" data-trace-action="trace-reload"><i class="fa-solid fa-rotate"></i> Refresh</button>
+                    </div>
+                </div>
+                <div class="trace-stats">
+                    <div class="trace-stat"><strong id="trace-stat-farms">0</strong><span>Registered farms</span></div>
+                    <div class="trace-stat"><strong id="trace-stat-catalog">0</strong><span>Catalog products</span></div>
+                    <div class="trace-stat"><strong id="trace-stat-batches">0</strong><span>Active batches</span></div>
+                    <div class="trace-stat"><strong id="trace-stat-stock">0</strong><span>Available units</span></div>
+                </div>
+                <section class="trace-section">
+                    <div class="trace-section-header"><div><h3>Registered farms</h3><p>Only general location is shared publicly.</p></div><span class="trace-badge">Required for selling</span></div>
+                    <div id="farmer-trace-farms" class="stack-list"></div>
+                </section>
+                <section class="trace-section">
+                    <div class="trace-section-header"><div><h3>Harvest &amp; batch ledger</h3><p>Track quantities and expiration before they become marketplace inventory.</p></div></div>
+                    <div id="farmer-trace-batches" class="stack-list"></div>
+                    <div id="farmer-trace-harvests" class="stack-list"></div>
+                </section>
             </div>
 
             <!-- MY ORDERS -->
@@ -165,6 +300,14 @@
             <div id="view-analytics" class="view-section">
                 <h2 style="color: var(--text-main);">Analytics</h2>
                 <div class="stat-tiles" id="analytics-tiles"></div>
+                <div class="widget" id="farmer-sales-report">
+                    <div class="widget-header"><h3>Sales performance · last 12 months</h3></div>
+                    <div id="analytics-sales-chart" class="sales-chart" role="img" aria-label="Monthly paid sales revenue chart"></div>
+                </div>
+                <div class="widget" id="farmer-buyers-report" style="margin-top: 15px;">
+                    <div class="widget-header"><h3>Buyers by product</h3></div>
+                    <div id="analytics-buyers" class="stack-list"></div>
+                </div>
                 <div class="widget">
                     <div class="widget-header"><h3>Listings by Category</h3></div>
                     <div id="analytics-bars"></div>
@@ -173,6 +316,10 @@
                     <div class="widget-header"><h3>My Product Performance</h3></div>
                     <div id="analytics-products"></div>
                 </div>
+                    <div class="widget" id="farmer-product-listings" style="margin-top: 15px;">
+                        <div class="widget-header"><h3>My Marketplace Products</h3><p>Manage product name, category, description, and photo. Farm and batch pricing stay unchanged.</p></div>
+                        <div id="analytics-product-listings"></div>
+                    </div>
             </div>
 
             <!-- HELP CENTER -->
@@ -180,11 +327,15 @@
                 <h2 style="color: var(--text-main);">Help Center</h2>
                 <div class="help-item">
                     <h4>How do I sell a product?</h4>
-                    <p>Click the "What's on your mind?" box, choose "Sell Product", fill in the details and post. An admin reviews it before it appears in the Marketplace.</p>
+                    <p>Farmers can list products. Listings and posts appear immediately; users can report a post for administrator review.</p>
                 </div>
                 <div class="help-item">
-                    <h4>Where can I see my pending posts?</h4>
-                    <p>Open "Pending Posts" in the sidebar. Posts stay there until an administrator approves or deletes them.</p>
+                    <h4>What can buyers post?</h4>
+                    <p>Buyers can share text and photo/video posts, but cannot create product listings.</p>
+                </div>
+                <div class="help-item">
+                    <h4>When are my posts visible?</h4>
+                    <p>Your posts are published immediately. Administrators may review reports from users and remove content that violates community guidelines.</p>
                 </div>
                 <div class="help-item">
                     <h4>How do I check out?</h4>
@@ -261,18 +412,30 @@
 
     <!-- MODALS -->
 
-    <!-- PENDING POSTS MODAL -->
-    <div class="modal-overlay" id="pending-posts-modal">
-        <div class="modal" style="max-width: 500px;">
+    <div class="modal-overlay" id="report-post-modal" role="dialog" aria-modal="true" aria-labelledby="report-post-title">
+        <div class="modal" style="max-width: 520px;">
             <div class="modal-header">
-                <h2>Pending Posts</h2>
-                <button class="close-btn" onclick="closeModal('pending-posts-modal')"><i class="fa-solid fa-xmark"></i></button>
+                <h2 id="report-post-title">Report this post</h2>
+                <button class="close-btn" type="button" aria-label="Close report" onclick="closeModal('report-post-modal')"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 15px;">These posts are currently waiting for Admin approval.</p>
-            <div id="pending-list"></div>
-            <div style="text-align: center; margin-top: 20px;">
-                <p style="font-size: 0.8rem; color: var(--text-muted);">Admin usually reviews posts within 24 hours.</p>
+            <p id="report-post-summary" style="color:var(--text-muted); margin-bottom:12px;"></p>
+            <form id="report-post-form">
+                <label for="report-post-reason">What should the administrator review?</label>
+                <textarea id="report-post-reason" rows="4" maxlength="255" required placeholder="Describe the problem or concern."></textarea>
+                <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px;">
+                    <button class="btn-muted" type="button" onclick="closeModal('report-post-modal')">Cancel</button>
+                    <button class="btn-primary" type="submit" id="report-post-submit"><i class="fa-solid fa-flag"></i> Send report</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="modal-overlay" id="farmer-profile-modal" role="dialog" aria-modal="true" aria-labelledby="farmer-profile-title">
+        <div class="modal" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2 id="farmer-profile-title">Farmer profile</h2>
+                <button class="close-btn" type="button" aria-label="Close farmer profile" onclick="closeModal('farmer-profile-modal')"><i class="fa-solid fa-xmark"></i></button>
             </div>
+            <div id="farmer-profile-content" class="farmer-profile-content"></div>
         </div>
     </div>
 
@@ -284,7 +447,7 @@
                 <button class="close-btn" onclick="closeModal('post-modal')"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="post-user">
-                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80" alt="User" id="post-modal-avatar">
+                <img src="/default-avatar.jpg" alt="User" id="post-modal-avatar">
                 <div class="post-user-info">
                     <h4 id="post-modal-name">User</h4>
                 </div>
@@ -294,6 +457,7 @@
                 <button class="post-tab" data-tab="video" onclick="switchPostTab('video', this)"><i class="fa-solid fa-video"></i> Video/Photo</button>
                 <button class="post-tab" data-tab="product" onclick="switchPostTab('product', this)"><i class="fa-solid fa-box"></i> Sell Product</button>
             </div>
+            <p id="post-permission-note" style="color: var(--text-muted); font-size: 0.8rem;"></p>
             <div id="post-area-text" class="post-input-area active">
                 <textarea id="post-text" placeholder="What's on your mind?"></textarea>
             </div>
@@ -306,25 +470,23 @@
                 <textarea id="post-media-desc" placeholder="Describe your media..."></textarea>
             </div>
             <div id="post-area-product" class="post-input-area">
-                <input type="text" id="product-name" placeholder="Product Name" maxlength="150">
-                <div style="display: flex; gap: 10px;">
-                    <input type="number" id="product-price" placeholder="Price (₱)" min="0" step="0.01" style="flex: 1;">
-                    <input type="number" id="product-stock" placeholder="Stock" min="1" step="1" style="flex: 1;">
-                    <input type="text" id="product-unit" value="kg" placeholder="Unit" maxlength="30" style="flex: 1;">
+                <div class="product-form-grid">
+                <div class="wide"><label for="product-name">Product name</label><input type="text" id="product-name" placeholder="Fresh Mangoes" maxlength="150"></div>
+                <div><label for="product-farm">Registered farm</label><select id="product-farm" required><option value="">Select your farm</option></select></div>
+                <div><label for="product-category">Product category</label>
+                    <input id="product-category" list="product-category-options" value="Fruits" placeholder="Fruits, Vegetables, or your own category" required>
+                    <datalist id="product-category-options">
+                        <option value="Fruits"><option value="Vegetables"><option value="Meats"><option value="Grains"><option value="Dairy">
+                    </datalist>
                 </div>
-                <select id="product-category">
-                    <option value="Fruits">Fruits</option>
-                    <option value="Vegetables">Vegetables</option>
-                    <option value="Meats">Meats</option>
-                    <option value="Grains">Grains</option>
-                    <option value="Dairy">Dairy</option>
-                </select>
-                <textarea id="product-description" placeholder="Describe your product..."></textarea>
+                <div class="wide"><label for="product-description">Description</label><textarea id="product-description" placeholder="Describe your product..."></textarea></div>
                 <div class="file-upload-box" onclick="openFilePicker('product')" style="padding: 15px;">
                     <i class="fa-solid fa-image"></i>
-                    <p id="product-upload-label">Add Product Photo</p>
+                    <p id="product-upload-label">Add Photo</p>
                 </div>
-                <input type="file" id="file-input-product" accept="image/*" multiple style="display: none;" onchange="fileSelected(event, 'product')">
+                <input type="file" id="file-input-product" accept="image/*" style="display: none;" onchange="fileSelected(event, 'product')">
+                <p class="field-help wide">This saves your product details only. It will appear in the marketplace and feed after you create a batch.</p>
+                </div>
             </div>
             <div class="post-actions">
                 <button class="btn-primary" id="post-submit" onclick="submitPost()" style="width: 100%;">Post</button>
@@ -343,7 +505,20 @@
                 <img id="edit-post-avatar" src="" alt="User">
                 <div class="post-user-info"><h4 id="edit-post-name"></h4><span>Edit your post</span></div>
             </div>
-            <textarea id="edit-post-text" maxlength="5000" placeholder="What's on your mind?"></textarea>
+            <div class="field">
+                <label for="edit-post-text">Caption</label>
+                <textarea id="edit-post-text" maxlength="5000" placeholder="What's on your mind?"></textarea>
+            </div>
+            <div id="edit-post-media-preview" style="margin-top: 12px;"></div>
+            <div class="field" style="margin-top: 12px;">
+                <label id="edit-post-files-label" for="edit-post-files">Replace post photos or video</label>
+                <input type="file" id="edit-post-files" accept="image/*,video/mp4,video/webm,video/quicktime" multiple>
+                <div id="edit-post-files-help" class="field-help">Choose up to 5 files, each 8 MB or smaller. Choosing files replaces the current attachments.</div>
+            </div>
+            <label style="display: flex; align-items: center; gap: 8px; margin: 12px 0;">
+                <input id="edit-post-remove-media" type="checkbox" style="width: auto;">
+                <span id="edit-post-remove-label">Remove current attachments</span>
+            </label>
             <div class="post-actions" style="display: flex; gap: 10px; margin-top: 12px;">
                 <button type="button" class="btn-muted" id="edit-post-remove" onclick="removeEditingPost()" style="flex: 1; color: var(--danger); border: 1px solid var(--danger);"><i class="fa-solid fa-trash"></i> Remove Post</button>
                 <button type="button" class="btn-primary" id="edit-post-submit" onclick="submitEditPost()" style="flex: 1;">Save Changes</button>
@@ -368,10 +543,43 @@
                 <h4 style="color: var(--text-main); margin-bottom: 5px;">Description & Stock</h4>
                 <p id="detail-desc" style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.5;"></p>
             </div>
+            <div class="field hidden" id="detail-batch-picker-wrap">
+                <label for="detail-batch-picker">Available selling unit</label>
+                <select id="detail-batch-picker"></select>
+                <div class="field-help">Choose a unit to see its price, available quantity, and batch.</div>
+            </div>
+            <div class="field" id="detail-quantity-wrap">
+                <label for="detail-quantity">Quantity</label>
+                <input id="detail-quantity" type="number" min="0.01" step="0.01" value="1">
+            </div>
             <button type="button" class="btn-muted" id="detail-reviews-btn" data-action="detail-reviews"><i class="fa-solid fa-star"></i> Reviews &amp; Ratings</button>
+            <button type="button" class="btn-muted hidden" id="detail-edit-product-btn" data-action="edit-product"><i class="fa-solid fa-pen"></i> Edit Product</button>
             <div style="display: flex; gap: 10px;">
                 <button class="btn-muted" id="detail-save-btn" style="flex: 1;" onclick="toggleSaveFromDetails()"><i class="fa-regular fa-heart"></i> Save</button>
                 <button class="btn-primary" id="detail-cart-btn" style="flex: 2;" onclick="handleDetailProductAction()">Add to Cart</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="edit-product-modal" role="dialog" aria-modal="true" aria-labelledby="edit-product-title">
+        <div class="modal" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 id="edit-product-title">Edit Product</h2>
+                <button class="close-btn" type="button" aria-label="Close product editor" onclick="closeModal('edit-product-modal')"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="field"><label for="edit-product-name">Product name</label><input id="edit-product-name" maxlength="150" required></div>
+            <div class="field"><label for="edit-product-category">Product category</label><input id="edit-product-category" list="edit-product-category-options" maxlength="100" required></div>
+            <datalist id="edit-product-category-options"><option value="Fruits"><option value="Vegetables"><option value="Meats"><option value="Grains"><option value="Dairy"></datalist>
+            <div class="field"><label for="edit-product-description">Description</label><textarea id="edit-product-description"></textarea></div>
+            <div class="field">
+                <label for="edit-product-image">Product image</label>
+                <img id="edit-product-image-preview" alt="Current product image" style="width: 100%; max-height: 220px; object-fit: contain; border-radius: 8px; margin-bottom: 8px;">
+                <input type="file" id="edit-product-image" accept="image/*">
+                <div class="field-help">Choose a new image to replace the current one. Leave empty to keep it.</div>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 16px;">
+                <button type="button" class="btn-muted" onclick="closeModal('edit-product-modal')" style="flex: 1;">Cancel</button>
+                <button type="button" class="btn-primary" id="edit-product-save" onclick="saveProductEdit()" style="flex: 1;">Save Changes</button>
             </div>
         </div>
     </div>
@@ -407,13 +615,26 @@
             </div>
             <div class="shopee-cart-body" id="cart-items-container"></div>
             <div class="shopee-footer">
+                <div class="field" style="flex: 1 1 100%; margin: 0;">
+                    <label for="checkout-delivery-address">Delivery address</label>
+                    <textarea id="checkout-delivery-address" rows="2" maxlength="1000" required
+                        placeholder="Enter the address where this order should be delivered"></textarea>
+                </div>
+                <div class="field" style="flex: 1 1 100%; margin: 0;">
+                    <label for="checkout-payment-method">Payment method</label>
+                    <select id="checkout-payment-method">
+                        <option value="xendit">Online Payment (Xendit)</option>
+                        <option value="cod">Cash on Delivery (COD)</option>
+                    </select>
+                    <div class="field-help">Online payment is verified securely by Xendit. COD is paid upon delivery.</div>
+                </div>
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <input type="checkbox" id="select-all" onchange="toggleSelectAll(this)">
                     <label for="select-all" style="color: var(--text-main);">Select All</label>
                 </div>
                 <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
                     <div class="total" id="cart-total">Total: ₱0.00</div>
-                    <button class="btn-primary" id="checkout-btn" onclick="checkout()">Checkout</button>
+                    <button class="btn-primary" id="checkout-btn" onclick="checkout()">Place Order</button>
                 </div>
             </div>
         </div>
@@ -426,11 +647,10 @@
             <div class="msg-sidebar">
                 <div class="msg-sidebar-header">
                     <h2>Chats</h2>
-                    <input type="search" id="msg-search" placeholder="Search users or conversations" oninput="searchMessageUsers(this.value)">
+                    <input type="search" id="msg-search" placeholder="Search conversations" oninput="searchConversations(this.value)">
                     <div class="category-bar" id="msg-filter-bar" style="margin: 10px 0 0; gap: 6px;">
                         <button type="button" class="cat-btn active" onclick="setMessageFilter('all', this)" style="padding: 6px 10px;">All</button>
                         <button type="button" class="cat-btn" onclick="setMessageFilter('unread', this)" style="padding: 6px 10px;">Unread</button>
-                        <button type="button" class="cat-btn" onclick="setMessageFilter('following', this)" style="padding: 6px 10px;">Following</button>
                     </div>
                 </div>
                 <div class="msg-list" id="conv-list"></div>
@@ -460,6 +680,20 @@
                 <button class="close-btn" onclick="closeModal('notif-modal')"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div id="notif-list"></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="farmer-trace-modal" role="dialog" aria-modal="true" aria-labelledby="farmer-trace-form-title">
+        <div class="modal" style="max-width:760px;">
+            <div class="modal-header">
+                <h2 id="farmer-trace-form-title">Traceability record</h2>
+                <button class="close-btn" type="button" onclick="closeModal('farmer-trace-modal')" aria-label="Close form"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="farmer-trace-form">
+                <p id="farmer-trace-form-help" style="color:var(--text-muted); margin-bottom:14px;"></p>
+                <div id="farmer-trace-form-fields" class="farmer-trace-form-grid"></div>
+                <button id="farmer-trace-submit" type="submit" class="btn-primary" style="width:100%; margin-top:18px;">Save</button>
+            </form>
         </div>
     </div>
 

@@ -1,8 +1,53 @@
 /* My Profile (profile.html): details, photo, password */
 let profileUser = null;
 let profilePosts = [];
+let profileProducts = [];
 let editingProfilePost = null;
 let viewingOwnProfile = true;
+
+function publicFarmLocation(farm) {
+    return [farm.municipality, farm.province].filter(Boolean).join(', ') || 'Location not set';
+}
+
+function renderProfileFarm() {
+    const card = document.getElementById('profile-farm-card');
+    const details = document.getElementById('profile-farm-details');
+    if (!card || !details || !profileUser || profileUser.role !== 'farmer') {
+        if (card) card.classList.add('hidden');
+        return;
+    }
+    const farms = profileUser.farms || [];
+    card.classList.remove('hidden');
+    details.innerHTML = farms.length ? farms.map((farm) => `
+        <article style="padding: 12px 0; border-bottom: 1px solid var(--border-color);">
+            <h4>${escapeHtml(farm.farm_name)}</h4>
+            <p style="color: var(--text-muted); margin-top: 5px;"><i class="fa-solid fa-location-dot"></i> ${escapeHtml(publicFarmLocation(farm))}</p>
+            ${farm.farm_description ? `<p style="line-height: 1.5; margin-top: 8px;">${escapeHtml(farm.farm_description)}</p>` : ''}
+            ${farm.farm_size ? `<p style="color: var(--text-muted); margin-top: 6px;">${escapeHtml(String(farm.farm_size))} ${escapeHtml(farm.farm_size_unit || 'units')}</p>` : ''}
+        </article>`).join('') : '<p style="color: var(--text-muted);">No registered farm information is available.</p>';
+}
+
+function renderProfileProducts() {
+    const card = document.getElementById('profile-products-card');
+    const container = document.getElementById('profile-products');
+    if (!card || !container || !profileUser || profileUser.role !== 'farmer') {
+        if (card) card.classList.add('hidden');
+        return;
+    }
+    card.classList.remove('hidden');
+    const available = profileProducts.filter((product) => Number(product.is_available) === 1 && Number(product.stock) > 0);
+    container.innerHTML = available.length ? available.map((product) => `
+        <article class="market-card">
+            <img src="${escapeHtml(mediaUrl(product.image_url, DEFAULT_PRODUCT_IMG))}" alt="${escapeHtml(product.product_name)}">
+            <div class="market-card-info">
+                <h4>${escapeHtml(product.product_name)}</h4>
+                <p class="product-meta"><span><i class="fa-solid fa-location-dot"></i> ${escapeHtml(product.farm_name || 'Registered farm')}</span></p>
+                <p style="font-size: .8rem; color: var(--text-muted);">${escapeHtml([product.municipality, product.province].filter(Boolean).join(', ') || 'Location not set')}</p>
+                <p style="font-size: 1.05rem; color: var(--primary); font-weight: bold;">${money(product.price)} / ${escapeHtml(product.unit || 'unit')}</p>
+                <p style="font-size: .8rem; color: var(--text-muted);">${escapeHtml(String(product.stock))} available</p>
+            </div>
+        </article>`).join('') : emptyBlock('fa-box-open', 'No products listed', 'Available products will appear here.');
+}
 
 function renderProfileHeader() {
     const u = profileUser;
@@ -21,7 +66,7 @@ function renderProfileHeader() {
     const active = Number(u.is_active) === 1;
     const statusEl = document.getElementById('profile-status');
     statusEl.className = 'status-pill' + (active ? ' ok' : '');
-    statusEl.innerHTML = `<i class="fa-solid fa-circle-check"></i> ${active ? 'Active' : 'Pending approval'}`;
+    statusEl.innerHTML = `<i class="fa-solid ${active ? 'fa-circle-check' : 'fa-circle-exclamation'}"></i> ${active ? 'Active' : 'Inactive'}`;
 }
 
 function fillProfileForm() {
@@ -46,6 +91,8 @@ async function refreshProfile() {
     initShell(profileUser);
     fillProfileForm();
     renderProfileHeader();
+    renderProfileFarm();
+    renderProfileProducts();
     await renderProfileQr();
     await loadProfilePosts();
 }
@@ -100,7 +147,11 @@ function profilePostMedia(post) {
 }
 
 function profilePostMediaItems(post) {
-    if (!post.media_url) return [];
+    if (!post.media_url) {
+        return post.post_type === 'product' && post.product_image
+            ? [{ url: post.product_image, type: 'image' }]
+            : [];
+    }
     try {
         const parsed = JSON.parse(post.media_url);
         return (Array.isArray(parsed) ? parsed : [{ url: post.media_url, type: post.media_type }])
@@ -126,7 +177,6 @@ async function loadProfilePosts() {
                             <strong style="color: var(--text-main);">${escapeHtml(fullName(profileUser))}</strong>
                             <p title="${escapeHtml(formatDateTime(post.created_at))}" style="font-size: 0.8rem; color: var(--text-muted);">${escapeHtml(formatDateTime(post.created_at))} (${escapeHtml(timeAgo(post.created_at))})</p>
                         </div>
-                        ${post.status === 'pending' ? '<span class="status-pill" style="margin-left: auto;">Pending review</span>' : ''}
                     </div>
                     <p style="color: var(--text-main); line-height: 1.5; margin-top: 12px; white-space: pre-wrap; overflow-wrap: anywhere;">${escapeHtml(post.content)}</p>
                     ${profilePostMedia(post)}
@@ -161,6 +211,16 @@ function openProfilePostEdit(postId) {
     document.getElementById('profile-post-edit-files').accept = post.post_type === 'product'
         ? 'image/*'
         : 'image/*,video/mp4,video/webm,video/quicktime';
+    document.getElementById('profile-post-edit-files').multiple = post.post_type !== 'product';
+    document.getElementById('profile-post-edit-files-label').textContent = post.post_type === 'product'
+        ? 'Replace product image'
+        : 'Replace post photos or video';
+    document.getElementById('profile-post-edit-files-help').textContent = post.post_type === 'product'
+        ? 'Choose one image, 8 MB or smaller. It will replace the product image on the marketplace and post.'
+        : 'Choose up to 5 files, each 8 MB or smaller. Choosing files replaces the current attachments.';
+    document.getElementById('profile-post-edit-remove-label').textContent = post.post_type === 'product'
+        ? 'Remove product image'
+        : 'Remove current attachments';
     document.getElementById('profile-post-edit-remove-media').checked = false;
     openModal('profile-post-edit-modal');
     document.getElementById('profile-post-edit-content').focus();
@@ -176,8 +236,11 @@ async function saveProfilePostEdit() {
         toast('Post content cannot be empty.', 'error');
         return;
     }
-    if (files.length > 5) {
-        toast('Choose no more than 5 attachments.', 'error');
+    const maxFiles = editingProfilePost.post_type === 'product' ? 1 : 5;
+    if (files.length > maxFiles) {
+        toast(editingProfilePost.post_type === 'product'
+            ? 'Choose one product image.'
+            : 'Choose no more than 5 attachments.', 'error');
         return;
     }
     if (files.some((file) => file.size > MAX_MEDIA_BYTES)) {
@@ -305,7 +368,7 @@ async function moveProfilePhotoToCloud() {
         const uploaded = await uploadMedia(file, 'profiles');
         await api(`/update/${profileUser.id}`, { method: 'PUT', body: { profile_pic: uploaded.url } });
         await refreshProfile();
-        toast('Profile photo moved to Puter.');
+        toast('Profile photo moved to cloud storage.');
     } catch (error) {
         toast(error.message, 'error');
     } finally {
@@ -328,6 +391,9 @@ async function initPage() {
         try {
             profileUser = await api(`/members/${encodeURIComponent(targetUserId)}`);
             renderProfileHeader();
+            renderProfileFarm();
+            profileProducts = profileUser.products || [];
+            renderProfileProducts();
             followButton.textContent = profileUser.following ? 'Following' : 'Add friend';
             followButton.setAttribute('aria-pressed', String(Boolean(profileUser.following)));
             document.querySelector('.topbar-left h2').textContent = 'Member Profile';
@@ -343,6 +409,9 @@ async function initPage() {
     initShell(user);
     fillProfileForm();
     renderProfileHeader();
+    renderProfileFarm();
+    profileProducts = profileUser.products || [];
+    renderProfileProducts();
     await renderProfileQr();
     await loadProfilePosts();
     listen(document.getElementById('avatar-input'), 'change', (e) => handleAvatarChange(e.target));

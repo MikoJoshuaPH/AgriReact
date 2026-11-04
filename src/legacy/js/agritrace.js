@@ -4,9 +4,10 @@
    ===================================================================== */
 
 const API_BASE = (window.AGRITRACE_API_BASE_URL || '/api').replace(/\/$/, '');
-const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80';
+const DEFAULT_AVATAR = '/default-avatar.jpg';
 const DEFAULT_PRODUCT_IMG = 'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=400&q=80';
 const CATEGORIES = ['Fruits', 'Vegetables', 'Meats', 'Grains', 'Dairy'];
+const SELLING_UNIT_LABELS = { piece: 'piece', kg: 'kg', bundle: 'bundle', pack: 'pack', sack: 'sack', box: 'box', dozen: 'dozen', set: 'set', liter: 'liter', other: 'unit' };
 // Sign-up choices map onto the roles the backend understands.
 const SIGNUP_ROLES = [
     { label: 'Farmer', role: 'farmer' },
@@ -162,23 +163,7 @@ async function api(path, options = {}) {
     return data;
 }
 
-async function requirePuterSignIn() {
-    const client = typeof window.getPuterClient === 'function'
-        ? await window.getPuterClient()
-        : window.puter;
-    if (!client || !client.auth || !client.fs) {
-        throw new Error('Puter.js is unavailable. Reload the page and try again.');
-    }
-    if (!client.auth.isSignedIn()) {
-        await client.auth.signIn();
-    }
-    if (!client.auth.isSignedIn()) {
-        throw new Error('Sign in to Puter to upload files.');
-    }
-    return client;
-}
-
-/** Uploads media to the signed-in user's Puter storage and returns a public URL. */
+/** Uploads media through the authenticated API; storage credentials stay on the backend. */
 async function uploadMedia(file, folder = 'community') {
     if (file.size > MAX_MEDIA_BYTES) {
         throw new Error('Media files must be 8 MB or smaller.');
@@ -196,12 +181,11 @@ async function uploadMedia(file, folder = 'community') {
     if (!extension) {
         throw new Error('Only JPG, PNG, GIF, WEBP, MP4, WEBM, and MOV files are supported.');
     }
-    const client = await requirePuterSignIn();
-    const month = new Date().toISOString().slice(0, 7).replace('-', '');
-    const path = `${folder}/${month}/${crypto.randomUUID()}.${extension}`;
-    await client.fs.write(path, file, { overwrite: false, createMissingParents: true });
-    const url = await client.fs.getReadURL(path, '10y');
-    return { url: String(url), type: file.type.startsWith('video/') ? 'video' : 'image' };
+    const form = new FormData();
+    form.append('media', file);
+    form.append('folder', folder);
+    const result = await api('/media', { method: 'POST', form });
+    return { url: result.url, type: result.type };
 }
 
 /** Loads the signed-in user from the server, or sends the visitor to the login page. */
@@ -278,12 +262,17 @@ function readAsDataUrl(file) {
 
 /* ---------- page lifecycle: listeners are tracked so they can be removed on exit ---------- */
 const pageListeners = [];
+const pageCleanups = [];
 function listen(target, type, handler) {
     target.addEventListener(type, handler);
     pageListeners.push([target, type, handler]);
 }
+function onPageTeardown(callback) {
+    pageCleanups.push(callback);
+}
 function teardownPage() {
     pageListeners.splice(0).forEach(([target, type, handler]) => target.removeEventListener(type, handler));
+    pageCleanups.splice(0).forEach((callback) => callback());
 }
 
 /** Fills the sidebar profile, shows admin-only links and sets up the mobile drawer. */
@@ -294,6 +283,12 @@ function initShell(user) {
     const picEl = document.getElementById('sidebar-profile-pic');
     if (picEl) picEl.src = avatarOf(user);
     document.querySelectorAll('.admin-only').forEach((el) => el.classList.toggle('hidden', !isAdmin(user)));
+    document.querySelectorAll('.farmer-only').forEach((el) => {
+        el.classList.toggle('hidden', user.role !== 'farmer');
+    });
+    document.querySelectorAll('.buyer-only').forEach((el) => {
+        el.classList.toggle('hidden', user.role !== 'collector');
+    });
 
     if (!document.getElementById('sidebar-overlay')) {
         const overlay = document.createElement('div');
@@ -383,10 +378,25 @@ async function createMap(elementId, lat, lng, zoom = 14) {
 }
 /** Returns the address Geoapify finds for a coordinate, or '' when none. */
 async function geoReverse(lat, lng) {
+    const result = await geoReverseDetails(lat, lng);
+    return result ? result.label : '';
+}
+/** Returns the formatted address and available administrative areas for a coordinate. */
+async function geoReverseDetails(lat, lng) {
     const response = await fetch(`https://api.geoapify.com/v1/geocode/reverse?lat=${lat}&lon=${lng}&apiKey=${geoapifyKey()}`);
+    if (!response.ok) {
+        throw new Error(`Location lookup failed (${response.status}).`);
+    }
     const data = await response.json();
     const feature = data.features && data.features[0];
-    return feature ? feature.properties.formatted : '';
+    if (!feature) return null;
+    const properties = feature.properties || {};
+    return {
+        label: properties.formatted || '',
+        province: properties.state || properties.province || '',
+        municipality: properties.municipality || properties.city || properties.town || '',
+        barangay: properties.suburb || properties.neighbourhood || properties.quarter || properties.village || ''
+    };
 }
 /** Finds the first place matching a text search. Returns { lat, lng, label } or null. */
 async function geoSearch(text) {
