@@ -1449,15 +1449,21 @@ async function openBatchAllocation(orderId) {
 }
 async function loadOrders() {
     const loadSequence = ++ordersLoadSequence;
-    const isManagingOrders = me && me.role === 'farmer' && orderCategory === 'managing';
-    const orderUrl = me && me.role === 'farmer'
+    const role = me && me.role;
+    const canManageOrders = ['farmer', 'admin'].includes(role);
+    const isManagingOrders = canManageOrders && orderCategory === 'managing';
+    const isMyShipments = role === 'transporter' && orderCategory === 'shipments';
+    if (!canManageOrders && role !== 'transporter' && orderCategory !== 'mine') orderCategory = 'mine';
+    const orderUrl = canManageOrders
         ? `/orders?scope=${isManagingOrders ? 'managing' : 'buyer'}`
-        : '/orders';
+        : role === 'transporter'
+            ? `/orders?scope=${isMyShipments ? 'shipments' : 'buyer'}`
+            : '/orders';
     try {
         const data = await api(orderUrl);
         if (loadSequence !== ordersLoadSequence) return;
         state.orders = data.data || [];
-        if (paymentReturnPending || (currentView === 'orders' && !isManagingOrders)) {
+        if (paymentReturnPending || (currentView === 'orders' && !isManagingOrders && !isMyShipments)) {
             if (!paymentReconciliation) {
                 paymentReconciliation = (async () => {
                     const pending = (paymentReturnOrderId
@@ -1506,23 +1512,28 @@ async function loadOrders() {
     }
     const orderTabs = document.getElementById('order-category-tabs');
     const ordersDescription = document.getElementById('orders-description');
-    orderTabs.hidden = !me || me.role !== 'farmer';
-    if (me && me.role === 'farmer') {
-        document.getElementById('my-orders-tab').classList.toggle('active', !isManagingOrders);
-        document.getElementById('my-orders-tab').setAttribute('aria-selected', String(!isManagingOrders));
-        document.getElementById('managing-orders-tab').classList.toggle('active', isManagingOrders);
-        document.getElementById('managing-orders-tab').setAttribute('aria-selected', String(isManagingOrders));
-        ordersDescription.textContent = isManagingOrders
-            ? 'Review and manage orders buyers placed for your products.'
+    const myOrdersTab = document.getElementById('my-orders-tab');
+    const managingOrdersTab = document.getElementById('managing-orders-tab');
+    const myShipmentsTab = document.getElementById('my-shipments-tab');
+    orderTabs.hidden = !canManageOrders && role !== 'transporter';
+    managingOrdersTab.hidden = !canManageOrders;
+    myShipmentsTab.hidden = role !== 'transporter';
+    myOrdersTab.classList.toggle('active', !isManagingOrders && !isMyShipments);
+    myOrdersTab.setAttribute('aria-selected', String(!isManagingOrders && !isMyShipments));
+    managingOrdersTab.classList.toggle('active', isManagingOrders);
+    managingOrdersTab.setAttribute('aria-selected', String(isManagingOrders));
+    myShipmentsTab.classList.toggle('active', isMyShipments);
+    myShipmentsTab.setAttribute('aria-selected', String(isMyShipments));
+    ordersDescription.textContent = isManagingOrders
+        ? role === 'admin'
+            ? 'Review orders across the marketplace.'
+            : 'Review and manage orders buyers placed for your products.'
+        : isMyShipments
+            ? 'Review and update deliveries assigned to you.'
             : 'Track orders you placed with farmers.';
-    } else {
-        ordersDescription.textContent = me && me.role === 'transporter'
-            ? 'Review delivery requests assigned to you.'
-            : 'Orders you placed will appear here.';
-    }
     document.getElementById('orders-container').innerHTML = state.orders.length
         ? state.orders.map((o) => {
-            const visibleOrderTotal = isManagingOrders
+            const visibleOrderTotal = isManagingOrders && role === 'farmer'
                 ? o.items.reduce((total, item) => total + Number(item.subtotal || Number(item.quantity) * Number(item.unit_price)), 0)
                 : Number(o.total_amount);
             return `
@@ -1532,8 +1543,8 @@ async function loadOrders() {
                     ${orderPaymentBadge(o)}
                 </div>
                 ${orderProgressHTML(o)}
-                ${isManagingOrders ? `<p><strong>Ordered by:</strong> ${escapeHtml([o.buyer_first, o.buyer_last].filter(Boolean).join(' ') || o.buyer || 'Buyer')} · ${escapeHtml(o.buyer_email || '')}</p><p><strong>Order date:</strong> ${escapeHtml(orderDateTime(o.created_at) || '—')}</p>${o.status === 'awaiting_payment' ? '<p class="order-terminal">Waiting for the buyer to complete payment. Preparation unlocks after payment is confirmed.</p>' : ''}${farmerOrderActions(o)}` : ''}
-                ${me && me.role === 'transporter' ? `<p><strong>Farmer:</strong> ${escapeHtml([o.farmer_first, o.farmer_last].filter(Boolean).join(' ') || o.farmer_username || 'Registered farmer')}</p><p><strong>Pickup:</strong> ${escapeHtml(o.origin || 'Registered farm')}<br><strong>Deliver to:</strong> ${escapeHtml(o.destination || o.delivery_address || 'Address not set')}</p><p><strong>Buyer:</strong> ${escapeHtml([o.buyer_first, o.buyer_last].filter(Boolean).join(' ') || o.buyer || 'Buyer')} · ${escapeHtml(String(o.shipping_status || '').replace(/_/g, ' '))}</p>${transporterOrderActions(o)}` : ''}
+                ${isManagingOrders ? `<p><strong>Ordered by:</strong> ${escapeHtml([o.buyer_first, o.buyer_last].filter(Boolean).join(' ') || o.buyer || 'Buyer')} · ${escapeHtml(o.buyer_email || '')}</p><p><strong>Order date:</strong> ${escapeHtml(orderDateTime(o.created_at) || '—')}</p>${o.status === 'awaiting_payment' ? '<p class="order-terminal">Waiting for the buyer to complete payment. Preparation unlocks after payment is confirmed.</p>' : ''}${role === 'farmer' ? farmerOrderActions(o) : ''}` : ''}
+                ${isMyShipments ? `<p><strong>Farmer:</strong> ${escapeHtml([o.farmer_first, o.farmer_last].filter(Boolean).join(' ') || o.farmer_username || 'Registered farmer')}<br><strong>Pickup:</strong> ${escapeHtml(o.origin || 'Registered farm')}<br><strong>Deliver to:</strong> ${escapeHtml(o.destination || o.delivery_address || 'Address not set')}</p><p><strong>Buyer:</strong> ${escapeHtml([o.buyer_first, o.buyer_last].filter(Boolean).join(' ') || o.buyer || 'Buyer')} · ${escapeHtml(String(o.shipping_status || '').replace(/_/g, ' '))}</p>${transporterOrderActions(o)}` : ''}
                 ${!isManagingOrders && o.payment_method === 'xendit' && o.status === 'awaiting_payment' && o.payment_status !== 'paid'
                     ? `<button type="button" class="btn-primary" data-action="pay-order" data-id="${escapeHtml(o.order_id)}">Complete online payment</button>` : ''}
                 ${me && ['seller', 'buyer', 'user'].includes(me.role) && ['pending', 'awaiting_farmer_acceptance', 'awaiting_payment', 'accepted'].includes(o.status)
@@ -1550,10 +1561,10 @@ async function loadOrders() {
                         </div>
                         <strong>${money(it.quantity * it.unit_price)}</strong>
                     </div>`).join('')}
-                <div class="order-total">${isManagingOrders ? 'Your products' : 'Total'}: ${money(visibleOrderTotal)}</div>
+                <div class="order-total">${isManagingOrders && role === 'farmer' ? 'Your products' : 'Total'}: ${money(visibleOrderTotal)}</div>
             </div>`;
         }).join('')
-        : me && me.role === 'transporter'
+        : isMyShipments
             ? emptyBlock('fa-truck-fast', 'No shipping requests yet', 'Requests from nearby farmers will appear here for your review.')
             : isManagingOrders
                 ? emptyBlock('fa-box-open', 'No orders to manage', 'Orders buyers place for your products will appear here.')
@@ -1561,7 +1572,11 @@ async function loadOrders() {
     renderLocalTraceQrs();
 }
 function switchOrderCategory(category) {
-    if (!me || me.role !== 'farmer' || !['mine', 'managing'].includes(category)) return;
+    if (!me) return;
+    const categories = ['farmer', 'admin'].includes(me.role)
+        ? ['mine', 'managing']
+        : me.role === 'transporter' ? ['mine', 'shipments'] : ['mine'];
+    if (!categories.includes(category)) return;
     orderCategory = category;
     document.getElementById('orders-container').innerHTML = emptyBlock('fa-circle-notch fa-spin', 'Loading orders', '');
     loadOrders();
@@ -1958,14 +1973,113 @@ async function openNotifications() {
 }
 
 /* ---------- analytics ---------- */
+function renderTransporterAnalytics(analytics) {
+    document.getElementById('analytics-tiles').innerHTML = [
+        [analytics.my_shipments, 'Assigned shipments'],
+        [analytics.my_active_shipments, 'Active shipments'],
+        [analytics.my_delivered_shipments, 'Completed deliveries']
+    ].map(([value, label]) => `<div class="stat-tile"><h3>${Number(value) || 0}</h3><p>${label}</p></div>`).join('');
+    document.getElementById('analytics-shipment-statuses').innerHTML = analytics.my_shipment_statuses.length
+        ? analytics.my_shipment_statuses.map((item) => `<article class="order-card">
+            <div class="order-head"><strong>${escapeHtml(String(item.status).replace(/_/g, ' '))}</strong><span>${Number(item.count) || 0}</span></div>
+        </article>`).join('')
+        : emptyBlock('fa-truck-fast', 'No shipping activity yet', 'Shipment totals and status updates will appear here when orders are assigned to you.');
+    document.getElementById('analytics-shipments').innerHTML = analytics.my_recent_shipments.length
+        ? analytics.my_recent_shipments.map((shipment) => `<article class="order-card">
+            <div class="order-head"><strong>Order #${escapeHtml(shipment.order_id)}</strong><span class="status-pill">${escapeHtml(String(shipment.status || '').replace(/_/g, ' '))}</span></div>
+            <p><strong>Buyer:</strong> ${escapeHtml([shipment.buyer_first, shipment.buyer_last].filter(Boolean).join(' ') || 'Buyer')}</p>
+            <p><strong>Pickup:</strong> ${escapeHtml(shipment.origin || '—')}<br><strong>Deliver to:</strong> ${escapeHtml(shipment.destination || '—')}</p>
+            <p><strong>Carrier:</strong> ${escapeHtml(shipment.shipping_provider || 'AgriTrace transporter')} · ${escapeHtml(orderDateTime(shipment.created_at) || '—')}</p>
+        </article>`).join('')
+        : emptyBlock('fa-box-open', 'No shipments yet', 'Your recent assigned shipments will appear here.');
+}
+
+function analyticsCsvCell(value) {
+    let text = String(value == null ? '' : value);
+    if (/^[=+\-@]/.test(text)) text = `'${text}`;
+    return `"${text.replace(/"/g, '""')}"`;
+}
+
+function exportAnalyticsCsv() {
+    const analytics = window.__analytics;
+    if (!analytics) {
+        toast('Load analytics before exporting a report.', 'error');
+        return;
+    }
+    const rows = [['Section', 'Metric', 'Value', 'Details']];
+    if (me.role === 'transporter') {
+        rows.push(
+            ['Shipping summary', 'Assigned shipments', analytics.my_shipments],
+            ['Shipping summary', 'Active shipments', analytics.my_active_shipments],
+            ['Shipping summary', 'Completed deliveries', analytics.my_delivered_shipments]
+        );
+        (analytics.my_shipment_statuses || []).forEach((item) => {
+            rows.push(['Shipment status', item.status, item.count]);
+        });
+        (analytics.my_recent_shipments || []).forEach((shipment) => {
+            rows.push([
+                'Recent shipment',
+                `Order #${shipment.order_id}`,
+                shipment.status,
+                `${[shipment.buyer_first, shipment.buyer_last].filter(Boolean).join(' ') || 'Buyer'} · ${shipment.origin || ''} → ${shipment.destination || ''} · ${shipment.shipping_provider || ''} · ${shipment.created_at || ''}`
+            ]);
+        });
+    } else {
+        [
+            ['Active listings', analytics.active_listings],
+            ['Registered farmers', analytics.farmers],
+            ['My orders', analytics.my_orders],
+            ['My total spend', analytics.my_spend],
+            ['Published posts', analytics.my_posts],
+            ['My products', analytics.my_products],
+            ['Product reviews', analytics.my_product_reviews],
+            ['Average product rating', analytics.my_product_average_rating],
+            ['Unique buyers', analytics.my_buyer_count],
+            ['Paid orders', analytics.my_paid_orders],
+            ['Units sold', analytics.my_units_sold],
+            ['Sales revenue', analytics.my_sales_revenue]
+        ].forEach(([metric, value]) => {
+            if (value !== undefined) rows.push(['Summary', metric, value]);
+        });
+        (analytics.categories || []).forEach((item) => rows.push(['Listings by category', item.category, item.count]));
+        (analytics.my_monthly_sales || []).forEach((month) => {
+            rows.push(['Monthly sales', month.month, month.revenue, `${month.units_sold} units · ${month.paid_orders} paid orders`]);
+        });
+        (analytics.my_product_buyers || []).forEach((buyer) => {
+            rows.push(['Buyer by product', buyer.product_name, buyer.revenue, `${buyer.buyer_name || buyer.buyer_username} · ${buyer.quantity} units · ${buyer.order_count} orders`]);
+        });
+        (analytics.my_top_products || []).forEach((product) => {
+            rows.push(['Product performance', product.product_name, product.average_rating, `${product.review_count} reviews`]);
+        });
+    }
+    const csv = '\uFEFF' + rows.map((row) => row.map(analyticsCsvCell).join(',')).join('\r\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `agritrace-analytics-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+}
+
 async function loadAnalytics() {
+    const isTransporter = me.role === 'transporter';
     const salesReports = me.role === 'farmer';
+    document.getElementById('transporter-shipping-report').classList.toggle('hidden', !isTransporter);
     document.getElementById('farmer-sales-report').classList.toggle('hidden', !salesReports);
     document.getElementById('farmer-buyers-report').classList.toggle('hidden', !salesReports);
     document.getElementById('farmer-product-listings').classList.toggle('hidden', !salesReports);
+    document.getElementById('analytics-categories-report').classList.toggle('hidden', isTransporter);
+    document.getElementById('analytics-products-report').classList.toggle('hidden', isTransporter);
     renderFarmerProductListings();
     try {
         const a = await api('/analytics');
+        window.__analytics = a;
+        if (isTransporter) {
+            renderTransporterAnalytics(a);
+            return;
+        }
         document.getElementById('analytics-tiles').innerHTML = [
             [a.active_listings, 'Active listings'],
             [a.farmers, 'Registered farmers'],
@@ -2032,13 +2146,14 @@ async function loadAnalytics() {
             }).join('')}</div>`
             : emptyBlock('fa-box-open', 'No product reviews yet', 'Ratings for products you list will appear here.');
         renderFarmerProductListings();
-        window.__analytics = a;
     } catch (error) {
         document.getElementById('analytics-tiles').innerHTML = emptyBlock('fa-chart-line', 'Analytics temporarily unavailable', 'Please try again shortly.');
         document.getElementById('analytics-bars').innerHTML = '';
         document.getElementById('analytics-products').innerHTML = '';
         document.getElementById('analytics-sales-chart').innerHTML = '';
         document.getElementById('analytics-buyers').innerHTML = '';
+        document.getElementById('analytics-shipment-statuses').innerHTML = '';
+        document.getElementById('analytics-shipments').innerHTML = '';
         toast(error.message, 'error');
     }
 }
@@ -2202,7 +2317,6 @@ function renderFarmerTraceability() {
             ['Expiration date', batch.expiration_date || 'Not set']
         ], `${batch.qr_url ? `<img src="${escapeHtml(batch.qr_url)}" alt="QR code for ${escapeHtml(batch.batch_code)}" style="width:72px;height:72px;object-fit:contain;background:#fff;padding:4px;border-radius:6px;">` : '<span class="field-help">QR will appear after creation.</span>'}
             <a class="btn-muted" href="/trace?batch=${encodeURIComponent(batch.batch_code)}" target="_blank" rel="noopener">Public trace</a>
-            <button type="button" class="btn-muted" data-trace-action="batch-shipment" data-id="${escapeHtml(batch.batch_id)}">Add shipment</button>
             <button type="button" class="btn-muted" data-trace-action="edit-batch" data-id="${escapeHtml(batch.batch_id)}">Update status</button>
             <button type="button" class="btn-muted" data-trace-action="delete-batch" data-id="${escapeHtml(batch.batch_id)}" style="color:var(--danger);">Delete batch</button>`);
         }).join('')
@@ -2813,7 +2927,6 @@ async function initPage() {
             const action = traceAction.dataset.traceAction;
             const id = traceAction.dataset.id || '';
             const actions = {
-                'batch-shipment': () => openFarmerTraceForm('shipments', '', id),
                 'edit-batch': () => openFarmerTraceForm('batches', id),
                 'edit-farm': () => openFarmerTraceForm('farms', id),
                 'edit-harvest': () => openFarmerTraceForm('harvests', id),
@@ -2858,6 +2971,8 @@ async function initPage() {
         }
         const id = el.dataset.id;
         switch (el.dataset.action) {
+            case 'analytics-export-csv': exportAnalyticsCsv(); break;
+            case 'analytics-export-pdf': window.print(); break;
             case 'details': viewProductDetails(id); break;
             case 'edit-product': openProductEdit(id || detailListingId); break;
             case 'review-product': openProductReviews(id, el.dataset.name); break;
