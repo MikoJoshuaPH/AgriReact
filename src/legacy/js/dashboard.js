@@ -6,6 +6,8 @@
 
 let me = null;
 let currentView = 'feed';
+let orderCategory = 'mine';
+let ordersLoadSequence = 0;
 let currentCategory = 'All';
 let marketSort = 'newest';
 let farmerFilter = 'All';
@@ -1446,10 +1448,16 @@ async function openBatchAllocation(orderId) {
     });
 }
 async function loadOrders() {
+    const loadSequence = ++ordersLoadSequence;
+    const isManagingOrders = me && me.role === 'farmer' && orderCategory === 'managing';
+    const orderUrl = me && me.role === 'farmer'
+        ? `/orders?scope=${isManagingOrders ? 'managing' : 'buyer'}`
+        : '/orders';
     try {
-        const data = await api('/orders');
+        const data = await api(orderUrl);
+        if (loadSequence !== ordersLoadSequence) return;
         state.orders = data.data || [];
-        if (paymentReturnPending || currentView === 'orders') {
+        if (paymentReturnPending || (currentView === 'orders' && !isManagingOrders)) {
             if (!paymentReconciliation) {
                 paymentReconciliation = (async () => {
                     const pending = (paymentReturnOrderId
@@ -1466,7 +1474,8 @@ async function loadOrders() {
                         }
                     }));
                     if (results.some((result) => result && result.payment_status !== 'unpaid')) {
-                        const refreshed = await api('/orders');
+                        const refreshed = await api(orderUrl);
+                        if (loadSequence !== ordersLoadSequence) return;
                         state.orders = refreshed.data || [];
                     }
                     const paidOrder = state.orders.find((order) => String(order.order_id) === String(paymentReturnOrderId));
@@ -1486,20 +1495,46 @@ async function loadOrders() {
             }
             await paymentReconciliation;
             paymentReconciliation = null;
+            if (loadSequence !== ordersLoadSequence) return;
             if (paymentTraceRedirecting) return;
         }
-    } catch (error) { toast(error.message, 'error'); }
+    } catch (error) {
+        if (loadSequence !== ordersLoadSequence) return;
+        toast(error.message, 'error');
+        document.getElementById('orders-container').innerHTML = emptyBlock('fa-triangle-exclamation', 'Orders unavailable', error.message);
+        return;
+    }
+    const orderTabs = document.getElementById('order-category-tabs');
+    const ordersDescription = document.getElementById('orders-description');
+    orderTabs.hidden = !me || me.role !== 'farmer';
+    if (me && me.role === 'farmer') {
+        document.getElementById('my-orders-tab').classList.toggle('active', !isManagingOrders);
+        document.getElementById('my-orders-tab').setAttribute('aria-selected', String(!isManagingOrders));
+        document.getElementById('managing-orders-tab').classList.toggle('active', isManagingOrders);
+        document.getElementById('managing-orders-tab').setAttribute('aria-selected', String(isManagingOrders));
+        ordersDescription.textContent = isManagingOrders
+            ? 'Review and manage orders buyers placed for your products.'
+            : 'Track orders you placed with farmers.';
+    } else {
+        ordersDescription.textContent = me && me.role === 'transporter'
+            ? 'Review delivery requests assigned to you.'
+            : 'Orders you placed will appear here.';
+    }
     document.getElementById('orders-container').innerHTML = state.orders.length
-        ? state.orders.map((o) => `
+        ? state.orders.map((o) => {
+            const visibleOrderTotal = isManagingOrders
+                ? o.items.reduce((total, item) => total + Number(item.subtotal || Number(item.quantity) * Number(item.unit_price)), 0)
+                : Number(o.total_amount);
+            return `
             <div class="order-card">
                 <div class="order-head">
                     <span><b style="color: var(--text-main);">Order #${escapeHtml(o.order_id)}</b> • ${new Date(String(o.created_at).replace(' ', 'T')).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })}<br><span class="status-pill">${escapeHtml(String(o.status || '').replace(/_/g, ' '))}</span></span>
                     ${orderPaymentBadge(o)}
                 </div>
                 ${orderProgressHTML(o)}
-                ${me && me.role === 'farmer' ? `<p><strong>Ordered by:</strong> ${escapeHtml([o.buyer_first, o.buyer_last].filter(Boolean).join(' ') || o.buyer || 'Buyer')} · ${escapeHtml(o.buyer_email || '')}</p><p><strong>Order date:</strong> ${escapeHtml(orderDateTime(o.created_at) || '—')}</p>${o.status === 'awaiting_payment' ? '<p class="order-terminal">Waiting for the buyer to complete payment. Preparation unlocks after payment is confirmed.</p>' : ''}${farmerOrderActions(o)}` : ''}
+                ${isManagingOrders ? `<p><strong>Ordered by:</strong> ${escapeHtml([o.buyer_first, o.buyer_last].filter(Boolean).join(' ') || o.buyer || 'Buyer')} · ${escapeHtml(o.buyer_email || '')}</p><p><strong>Order date:</strong> ${escapeHtml(orderDateTime(o.created_at) || '—')}</p>${o.status === 'awaiting_payment' ? '<p class="order-terminal">Waiting for the buyer to complete payment. Preparation unlocks after payment is confirmed.</p>' : ''}${farmerOrderActions(o)}` : ''}
                 ${me && me.role === 'transporter' ? `<p><strong>Farmer:</strong> ${escapeHtml([o.farmer_first, o.farmer_last].filter(Boolean).join(' ') || o.farmer_username || 'Registered farmer')}</p><p><strong>Pickup:</strong> ${escapeHtml(o.origin || 'Registered farm')}<br><strong>Deliver to:</strong> ${escapeHtml(o.destination || o.delivery_address || 'Address not set')}</p><p><strong>Buyer:</strong> ${escapeHtml([o.buyer_first, o.buyer_last].filter(Boolean).join(' ') || o.buyer || 'Buyer')} · ${escapeHtml(String(o.shipping_status || '').replace(/_/g, ' '))}</p>${transporterOrderActions(o)}` : ''}
-                ${o.payment_method === 'xendit' && o.status === 'awaiting_payment' && o.payment_status !== 'paid'
+                ${!isManagingOrders && o.payment_method === 'xendit' && o.status === 'awaiting_payment' && o.payment_status !== 'paid'
                     ? `<button type="button" class="btn-primary" data-action="pay-order" data-id="${escapeHtml(o.order_id)}">Complete online payment</button>` : ''}
                 ${me && ['seller', 'buyer', 'user'].includes(me.role) && ['pending', 'awaiting_farmer_acceptance', 'awaiting_payment', 'accepted'].includes(o.status)
                     ? `<button type="button" class="btn-muted" data-action="cancel-order" data-id="${escapeHtml(o.order_id)}">Cancel order</button>` : ''}
@@ -1511,16 +1546,25 @@ async function loadOrders() {
                         <div class="order-line-info"><h4>${escapeHtml(it.product_name)}</h4><p>${Number(it.quantity)} ${escapeHtml(it.selling_unit && it.selling_unit !== 'other' ? it.selling_unit : it.unit)} × ${money(it.unit_price)}</p>
                             ${it.batch_code ? `<p>Batch ${escapeHtml(it.batch_code)} · ${escapeHtml(it.farm_name || 'Registered farm')}${it.harvest_date ? ` · Harvested ${escapeHtml(it.harvest_date)}` : ''}${it.expiration_date ? ` · Expires ${escapeHtml(it.expiration_date)}` : ''}</p>` : ''}
                             ${traceBlock(it, o)}
-                            ${o.payment_status === 'paid' && it.listing_id ? `<button type="button" class="btn-muted review-order-button" data-action="review-product" data-id="${escapeHtml(it.listing_id)}" data-name="${escapeHtml(it.product_name)}"><i class="fa-solid fa-star"></i> Review product</button>` : ''}
+                            ${!isManagingOrders && o.payment_status === 'paid' && it.listing_id ? `<button type="button" class="btn-muted review-order-button" data-action="review-product" data-id="${escapeHtml(it.listing_id)}" data-name="${escapeHtml(it.product_name)}"><i class="fa-solid fa-star"></i> Review product</button>` : ''}
                         </div>
                         <strong>${money(it.quantity * it.unit_price)}</strong>
                     </div>`).join('')}
-                <div class="order-total">Total: ${money(o.total_amount)}</div>
-            </div>`).join('')
+                <div class="order-total">${isManagingOrders ? 'Your products' : 'Total'}: ${money(visibleOrderTotal)}</div>
+            </div>`;
+        }).join('')
         : me && me.role === 'transporter'
             ? emptyBlock('fa-truck-fast', 'No shipping requests yet', 'Requests from nearby farmers will appear here for your review.')
-            : emptyBlock('fa-box-open', 'No orders yet', 'Items you check out from your cart will appear here.');
+            : isManagingOrders
+                ? emptyBlock('fa-box-open', 'No orders to manage', 'Orders buyers place for your products will appear here.')
+                : emptyBlock('fa-box-open', 'No orders yet', 'Items you check out from your cart will appear here.');
     renderLocalTraceQrs();
+}
+function switchOrderCategory(category) {
+    if (!me || me.role !== 'farmer' || !['mine', 'managing'].includes(category)) return;
+    orderCategory = category;
+    document.getElementById('orders-container').innerHTML = emptyBlock('fa-circle-notch fa-spin', 'Loading orders', '');
+    loadOrders();
 }
 async function renderLocalTraceQrs() {
     const images = Array.from(document.querySelectorAll('#orders-container img[data-trace-qr-code]:not([src])'));

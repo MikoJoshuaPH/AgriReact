@@ -75,6 +75,9 @@
 
         .cart-item-actions { display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 14px; }
         .order-actions { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0; }
+        .order-category-tabs { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 16px; }
+        .order-category-tabs button { padding:9px 14px; border:1px solid var(--border-color); border-radius:999px; background:var(--bg-surface); color:var(--text-muted); font-weight:600; cursor:pointer; }
+        .order-category-tabs button.active { border-color:var(--primary); background:color-mix(in srgb, var(--primary) 14%, var(--bg-surface)); color:var(--primary); }
         .order-terminal { margin:12px 0; padding:10px 12px; border-radius:8px; background:var(--bg-hover); color:var(--text-main); }
         .order-terminal.rejected, .order-terminal.cancelled { border-left:4px solid var(--danger); }
         .order-progress { margin:14px 0; padding:12px; border:1px solid var(--border-color); border-radius:10px; background:var(--bg-main); }
@@ -287,6 +290,11 @@
             <!-- MY ORDERS -->
             <div id="view-orders" class="view-section">
                 <h2 style="color: var(--text-main);">My Orders</h2>
+                <p id="orders-description" style="color:var(--text-muted); margin:0 0 14px;">Orders you placed will appear here.</p>
+                <div id="order-category-tabs" class="order-category-tabs" role="tablist" aria-label="Order categories" hidden>
+                    <button type="button" class="active" id="my-orders-tab" role="tab" aria-selected="true" onclick="switchOrderCategory('mine')">My Orders</button>
+                    <button type="button" id="managing-orders-tab" role="tab" aria-selected="false" onclick="switchOrderCategory('managing')">Managing Orders</button>
+                </div>
                 <div class="stack-list" id="orders-container"></div>
             </div>
 
