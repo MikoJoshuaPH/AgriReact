@@ -1154,11 +1154,12 @@ function orderPaymentBadge(order) {
     if (order.payment_status === 'payment_processing') return '<span class="status-pill"><i class="fa-solid fa-spinner"></i> Payment processing</span>';
     return '<span class="status-pill"><i class="fa-solid fa-clock"></i> Awaiting payment</span>';
 }
-function traceBlock(item) {
+function traceBlock(item, order) {
     if (!item.trace_code) return '';
-    const qr = item.qr_url
-        ? `<img src="${escapeHtml(item.qr_url)}" alt="QR code for ${escapeHtml(item.trace_code)}" style="width: 72px; height: 72px; border-radius: 8px; background: #fff; padding: 4px;">`
-        : '';
+    const prepared = ['ready_for_shipment', 'shipped', 'in_transit', 'out_for_delivery', 'delivered', 'completed'].includes(order.status);
+    const qr = prepared
+        ? `<img ${item.qr_url ? `src="${escapeHtml(item.qr_url)}"` : ''} data-trace-qr-code="${escapeHtml(item.trace_code)}" onerror="this.onerror=null;this.removeAttribute('src');renderLocalTraceQrs();" alt="QR code for ${escapeHtml(item.trace_code)}" style="width: 72px; height: 72px; border-radius: 8px; background: #fff; padding: 4px;">`
+        : '<span class="status-pill">QR appears after the farmer prepares the order</span>';
     return `<div style="display: flex; gap: 12px; align-items: center; margin: 6px 0 2px; flex-wrap: wrap;">
         ${qr}
         <div style="font-size: 0.8rem; color: var(--text-muted);">
@@ -1173,14 +1174,21 @@ function farmerOrderActions(order) {
         return `<div class="order-actions"><button type="button" class="btn-primary" data-action="order-accept" data-id="${id}">Accept order</button>
             <button type="button" class="btn-muted" data-action="order-reject" data-id="${id}">Reject</button></div>`;
     }
-    if (['accepted', 'confirmed'].includes(order.status)) {
+    if (['accepted', 'confirmed'].includes(order.status)
+        && (order.payment_method !== 'xendit' || order.payment_status === 'paid')) {
         return `<button type="button" class="btn-primary" data-action="order-status" data-status="preparing" data-id="${id}">Start preparing</button>`;
     }
-    if (order.status === 'preparing' || order.status === 'ready_for_shipment') {
-        return `<button type="button" class="btn-primary" data-action="order-status" data-status="shipped" data-id="${id}">Mark shipped</button>`;
+    if (order.status === 'preparing') {
+        return `<button type="button" class="btn-primary" data-action="order-status" data-status="ready_for_shipment" data-id="${id}">Prepared · create trace QR</button>`;
     }
-    if (['shipped', 'in_transit'].includes(order.status)) {
-        return `<button type="button" class="btn-primary" data-action="order-status" data-status="out_for_delivery" data-id="${id}">Out for delivery</button>`;
+    if (order.status === 'ready_for_shipment') {
+        if (order.shipping_status === 'offered') {
+            return `<p class="order-terminal">Waiting for the transporter to review the shipping request.</p>`;
+        }
+        const retryQr = (order.items || []).some((item) => item.trace_code && !item.qr_url)
+            ? `<button type="button" class="btn-muted" data-action="retry-order-qrs" data-id="${id}">Retry QR generation</button>`
+            : '';
+        return `<div class="order-actions">${retryQr}<button type="button" class="btn-primary" data-action="choose-transporter" data-id="${id}">Find nearby transporter</button></div>`;
     }
     if (order.status === 'out_for_delivery' && order.payment_method === 'cod' && order.payment_status !== 'paid') {
         return `<button type="button" class="btn-primary" data-action="collect-cod" data-id="${id}">Record COD payment</button>`;
@@ -1192,6 +1200,26 @@ function farmerOrderActions(order) {
         return `<button type="button" class="btn-primary" data-action="order-status" data-status="completed" data-id="${id}">Complete order</button>`;
     }
     return '';
+}
+
+function transporterOrderActions(order) {
+    const id = escapeHtml(order.assignment_id);
+    if (order.shipping_status === 'offered') {
+        return `<div class="order-actions">
+            <button type="button" class="btn-primary" data-action="shipping-update" data-status="accepted" data-id="${id}">Accept shipping</button>
+            <button type="button" class="btn-muted" data-action="shipping-update" data-status="rejected" data-id="${id}">Decline</button>
+        </div>`;
+    }
+    if (order.shipping_status === 'accepted') {
+        return `<button type="button" class="btn-primary" data-action="shipping-update" data-status="in_transit" data-id="${id}">Start delivery</button>`;
+    }
+    if (order.shipping_status === 'in_transit') {
+        return `<button type="button" class="btn-primary" data-action="shipping-update" data-status="out_for_delivery" data-id="${id}">Out for delivery</button>`;
+    }
+    if (order.shipping_status === 'out_for_delivery') {
+        return `<button type="button" class="btn-primary" data-action="shipping-update" data-status="delivered" data-id="${id}">Confirm delivered</button>`;
+    }
+    return `<span class="status-pill ok">Delivery complete</span>`;
 }
 
 function orderDateTime(value) {
@@ -1220,30 +1248,46 @@ function orderProgressHTML(order) {
     const paymentDone = order.payment_status === 'paid';
     const deliveredDone = ['delivered', 'completed'].includes(order.status) || hasStatus('delivered', 'completed');
     const cartAddedAt = (order.items || []).map((item) => item.cart_added_at).filter(Boolean).sort()[0] || order.created_at;
+    const preparedDone = hasStatus('ready_for_shipment', 'shipped', 'in_transit', 'out_for_delivery', 'delivered', 'completed')
+        || ['ready_for_shipment', 'shipped', 'in_transit', 'out_for_delivery', 'delivered', 'completed'].includes(order.status);
     const steps = online ? [
         ['Add to cart', true, cartAddedAt],
         ['Order', true, order.created_at],
         ['Review', reviewDone, eventTime('accepted', 'awaiting_payment')],
         ['Payment', paymentDone, paymentTime],
+        ['Prepared', preparedDone, eventTime('ready_for_shipment')],
         ['Shipping', shippingDone, eventTime('shipped', 'in_transit', 'out_for_delivery')],
         ['Delivered', deliveredDone, eventTime('delivered', 'completed')]
     ] : [
         ['Add to cart', true, cartAddedAt],
         ['Order', true, order.created_at],
         ['Review', reviewDone, eventTime('accepted')],
+        ['Prepared', preparedDone, eventTime('ready_for_shipment')],
         ['Shipping', shippingDone, eventTime('shipped', 'in_transit', 'out_for_delivery')],
         ['Payment', paymentDone, paymentTime],
         ['Delivered', deliveredDone, eventTime('delivered', 'completed')]
     ];
     const currentIndex = steps.findIndex((step) => !step[1]);
-    const nextAction = order.status === 'pending' || order.status === 'awaiting_farmer_acceptance'
-        ? 'Next: farmer reviews the order.'
-        : order.status === 'awaiting_payment' ? 'Next: buyer completes online payment.'
-            : order.status === 'accepted' ? 'Next: farmer prepares the order.'
-                : order.status === 'preparing' || order.status === 'ready_for_shipment' ? 'Next: farmer ships the order.'
-                    : order.status === 'shipped' || order.status === 'in_transit' ? 'Next: delivery is in progress.'
-                        : order.status === 'out_for_delivery' && order.payment_method === 'cod' && !paymentDone ? 'Next: collect COD payment, then confirm delivery.'
-                            : order.status === 'out_for_delivery' ? 'Next: confirm delivery.' : 'Order progress updated.';
+    let nextAction = 'Order progress updated.';
+    if (['pending', 'awaiting_farmer_acceptance'].includes(order.status)) {
+        nextAction = 'Next: farmer reviews the order.';
+    } else if (order.status === 'awaiting_payment') {
+        nextAction = 'Next: buyer completes online payment.';
+    } else if (order.status === 'accepted') {
+        nextAction = 'Next: farmer prepares the order.';
+    } else if (order.status === 'preparing') {
+        nextAction = 'Next: farmer marks it prepared and creates its trace QR.';
+    } else if (order.status === 'ready_for_shipment' && order.shipping_status === 'offered') {
+        nextAction = 'Next: transporter reviews the shipping request.';
+    } else if (order.status === 'ready_for_shipment') {
+        nextAction = 'Next: farmer assigns a nearby transporter.';
+    } else if (['shipped', 'in_transit'].includes(order.status)) {
+        nextAction = 'Next: delivery is in progress.';
+    } else if (order.status === 'out_for_delivery' && order.payment_method === 'cod' && !paymentDone) {
+        nextAction = 'Next: collect COD payment, then confirm delivery.';
+    } else if (order.status === 'out_for_delivery') {
+        nextAction = 'Next: confirm delivery.';
+    }
     return `<div class="order-progress" aria-label="${online ? 'Online payment' : 'Cash on delivery'} order progress">
         <ol>${steps.map((step, index) => `<li class="${step[1] ? 'done' : index === currentIndex ? 'current' : 'pending'}">
             <span class="order-progress-icon">${step[1] ? '<i class="fa-solid fa-check"></i>' : index + 1}</span>
@@ -1255,7 +1299,41 @@ function orderProgressHTML(order) {
 }
 async function updateOrderStatus(orderId, status, extra = {}) {
     await api(`/orders/${encodeURIComponent(orderId)}/status`, { method: 'PUT', body: { status, ...extra } });
+    let qrError = null;
+    if (status === 'ready_for_shipment') {
+        try {
+            await saveOrderTraceQrs(orderId);
+        } catch (error) {
+            qrError = error;
+        }
+    }
     await Promise.all([loadOrders(), loadNotifications(), loadMarketplace()]);
+    if (qrError) throw qrError;
+}
+async function saveOrderTraceQrs(orderId) {
+    const result = await api('/orders');
+    const order = (result.data || []).find((item) => String(item.order_id) === String(orderId));
+    if (!order) throw new Error('The prepared order could not be reloaded to generate its QR codes.');
+    const missing = (order.items || []).filter((item) => item.trace_code && !item.qr_url);
+    for (const item of missing) {
+        const traceUrl = new URL('/trace', location.origin);
+        traceUrl.searchParams.set('code', item.trace_code);
+        const imageData = await window.generateQrCode(traceUrl.href);
+        await api(`/orders/${encodeURIComponent(orderId)}/trace-qr`, {
+            method: 'POST',
+            body: { trace_code: item.trace_code, image_data: imageData }
+        });
+    }
+}
+async function runOrderButton(button, message, action) {
+    if (!button || button.dataset.traceLoading === 'true') return;
+    setTraceButtonLoading(button, true, message);
+    try {
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+        return await action();
+    } finally {
+        setTraceButtonLoading(button, false);
+    }
 }
 async function startOnlinePayment(orderId) {
     const result = await api(`/orders/${encodeURIComponent(orderId)}/payment`, {
@@ -1263,6 +1341,58 @@ async function startOnlinePayment(orderId) {
     });
     if (!result.invoice_url) throw new Error('The payment gateway did not return a payment link.');
     location.assign(result.invoice_url);
+}
+async function openTransporterChooser(orderId, button) {
+    await runOrderButton(button, 'Finding nearby transporters...', async () => {
+        const result = await api(`/orders/${encodeURIComponent(orderId)}/transporters`);
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay active';
+        modal.id = 'transporter-chooser-modal';
+        const assignment = result.assignment;
+        const transporters = result.data || [];
+        modal.innerHTML = `<div class="modal" style="max-width:820px; max-height:90vh; overflow:auto;">
+            <div class="modal-header"><h2><i class="fa-solid fa-truck-fast"></i> Choose a nearby transporter</h2>
+                <button class="close-btn" type="button" aria-label="Close" onclick="closeModal('transporter-chooser-modal')">&times;</button></div>
+            <p><strong>Nearest registered farm:</strong> ${escapeHtml(result.farm ? result.farm.name : 'Registered farm')} · ${escapeHtml(result.farm ? result.farm.location : 'Location not set')}</p>
+            ${assignment ? `<p class="order-terminal">Shipping request sent to ${escapeHtml([assignment.first_name, assignment.last_name].filter(Boolean).join(' ') || assignment.username)}. Waiting for the transporter to review it.</p>` : ''}
+            ${!assignment && !transporters.length ? '<p class="order-terminal">No transporter has completed a profile with a map location yet. Ask transporters to add their vehicle and location in My Profile.</p>' : ''}
+            <div id="transporter-chooser-map" style="height:300px; margin:14px 0; border:1px solid var(--border-color); border-radius:10px;"></div>
+            <div class="stack-list">${transporters.map((transporter) => `
+                <article class="order-card" style="margin:8px 0;">
+                    <div class="order-head"><strong>${escapeHtml([transporter.first_name, transporter.last_name].filter(Boolean).join(' ') || transporter.username)}</strong>
+                        <span class="status-pill">${transporter.distance_km === null ? 'Distance unavailable' : `${Number(transporter.distance_km).toFixed(1)} km from farm`}</span></div>
+                    <p><strong>Origin:</strong> ${escapeHtml(transporter.transport_origin)} · ${escapeHtml(transporter.location_label || 'Map location')}</p>
+                    <p><strong>Vehicle:</strong> ${escapeHtml(transporter.vehicle_type)} · ${escapeHtml(transporter.vehicle_number)}</p>
+                    ${assignment ? '' : `<button type="button" class="btn-primary" data-action="assign-transporter" data-id="${escapeHtml(orderId)}" data-transporter-id="${escapeHtml(transporter.id)}">Request this transporter</button>`}
+                </article>`).join('')}</div>
+        </div>`;
+        document.body.appendChild(modal);
+        if (transporters.length) {
+            const farm = result.farm || {};
+            const first = transporters[0];
+            const hasFarmCoordinates = farm.latitude !== null && farm.latitude !== '' && farm.longitude !== null && farm.longitude !== ''
+                && Number.isFinite(Number(farm.latitude)) && Number.isFinite(Number(farm.longitude));
+            const center = hasFarmCoordinates
+                ? [Number(farm.latitude), Number(farm.longitude)]
+                : [Number(first.latitude), Number(first.longitude)];
+            try {
+                const { map, L } = await createMap('transporter-chooser-map', center[0], center[1], 9);
+                if (hasFarmCoordinates) {
+                    L.marker([Number(farm.latitude), Number(farm.longitude)]).addTo(map).bindPopup('Registered farm');
+                }
+                transporters.forEach((transporter) => {
+                    L.marker([Number(transporter.latitude), Number(transporter.longitude)])
+                        .addTo(map)
+                        .bindPopup(escapeHtml([transporter.first_name, transporter.last_name].filter(Boolean).join(' ') || transporter.username));
+                });
+            } catch (error) {
+                const mapBox = document.getElementById('transporter-chooser-map');
+                if (mapBox) mapBox.textContent = `Map unavailable: ${error.message}`;
+            }
+        } else {
+            document.getElementById('transporter-chooser-map').classList.add('hidden');
+        }
+    });
 }
 async function openBatchAllocation(orderId) {
     const result = await api(`/orders/${orderId}/batch-options`);
@@ -1367,25 +1497,42 @@ async function loadOrders() {
                     ${orderPaymentBadge(o)}
                 </div>
                 ${orderProgressHTML(o)}
-                ${me && me.role === 'farmer' ? `<p>Buyer: <b>${escapeHtml([o.buyer_first, o.buyer_last].filter(Boolean).join(' ') || o.buyer || 'Buyer')}</b> · ${escapeHtml(o.buyer_email || '')}</p>${farmerOrderActions(o)}` : ''}
+                ${me && me.role === 'farmer' ? `<p><strong>Ordered by:</strong> ${escapeHtml([o.buyer_first, o.buyer_last].filter(Boolean).join(' ') || o.buyer || 'Buyer')} · ${escapeHtml(o.buyer_email || '')}</p><p><strong>Order date:</strong> ${escapeHtml(orderDateTime(o.created_at) || '—')}</p>${o.status === 'awaiting_payment' ? '<p class="order-terminal">Waiting for the buyer to complete payment. Preparation unlocks after payment is confirmed.</p>' : ''}${farmerOrderActions(o)}` : ''}
+                ${me && me.role === 'transporter' ? `<p><strong>Farmer:</strong> ${escapeHtml([o.farmer_first, o.farmer_last].filter(Boolean).join(' ') || o.farmer_username || 'Registered farmer')}</p><p><strong>Pickup:</strong> ${escapeHtml(o.origin || 'Registered farm')}<br><strong>Deliver to:</strong> ${escapeHtml(o.destination || o.delivery_address || 'Address not set')}</p><p><strong>Buyer:</strong> ${escapeHtml([o.buyer_first, o.buyer_last].filter(Boolean).join(' ') || o.buyer || 'Buyer')} · ${escapeHtml(String(o.shipping_status || '').replace(/_/g, ' '))}</p>${transporterOrderActions(o)}` : ''}
                 ${o.payment_method === 'xendit' && o.status === 'awaiting_payment' && o.payment_status !== 'paid'
                     ? `<button type="button" class="btn-primary" data-action="pay-order" data-id="${escapeHtml(o.order_id)}">Complete online payment</button>` : ''}
                 ${me && ['seller', 'buyer', 'user'].includes(me.role) && ['pending', 'awaiting_farmer_acceptance', 'awaiting_payment', 'accepted'].includes(o.status)
                     ? `<button type="button" class="btn-muted" data-action="cancel-order" data-id="${escapeHtml(o.order_id)}">Cancel order</button>` : ''}
-                ${o.delivery_address ? `<p><strong>Deliver to:</strong> ${escapeHtml(o.delivery_address)}</p>` : ''}
+                ${o.delivery_address && (!me || me.role !== 'transporter') ? `<p><strong>Deliver to:</strong> ${escapeHtml(o.delivery_address)}</p>` : ''}
+                ${o.assignment_id && me && me.role !== 'transporter' ? `<p><strong>Transporter:</strong> ${escapeHtml([o.transporter_first, o.transporter_last].filter(Boolean).join(' ') || o.transporter_username || 'Assigned')} · ${escapeHtml(String(o.shipping_status || '').replace(/_/g, ' '))}</p>` : ''}
                 ${o.shipping_provider ? `<p><strong>Delivery:</strong> ${escapeHtml(o.shipping_provider)}${o.tracking_number ? ` · Tracking ${escapeHtml(o.tracking_number)}` : ''}</p>` : ''}
                 ${o.items.map((it) => `
                     <div class="order-line">
                         <div class="order-line-info"><h4>${escapeHtml(it.product_name)}</h4><p>${Number(it.quantity)} ${escapeHtml(it.selling_unit && it.selling_unit !== 'other' ? it.selling_unit : it.unit)} × ${money(it.unit_price)}</p>
                             ${it.batch_code ? `<p>Batch ${escapeHtml(it.batch_code)} · ${escapeHtml(it.farm_name || 'Registered farm')}${it.harvest_date ? ` · Harvested ${escapeHtml(it.harvest_date)}` : ''}${it.expiration_date ? ` · Expires ${escapeHtml(it.expiration_date)}` : ''}</p>` : ''}
-                            ${traceBlock(it)}
+                            ${traceBlock(it, o)}
                             ${o.payment_status === 'paid' && it.listing_id ? `<button type="button" class="btn-muted review-order-button" data-action="review-product" data-id="${escapeHtml(it.listing_id)}" data-name="${escapeHtml(it.product_name)}"><i class="fa-solid fa-star"></i> Review product</button>` : ''}
                         </div>
                         <strong>${money(it.quantity * it.unit_price)}</strong>
                     </div>`).join('')}
                 <div class="order-total">Total: ${money(o.total_amount)}</div>
             </div>`).join('')
-        : emptyBlock('fa-box-open', 'No orders yet', 'Items you check out from your cart will appear here.');
+        : me && me.role === 'transporter'
+            ? emptyBlock('fa-truck-fast', 'No shipping requests yet', 'Requests from nearby farmers will appear here for your review.')
+            : emptyBlock('fa-box-open', 'No orders yet', 'Items you check out from your cart will appear here.');
+    renderLocalTraceQrs();
+}
+async function renderLocalTraceQrs() {
+    const images = Array.from(document.querySelectorAll('#orders-container img[data-trace-qr-code]:not([src])'));
+    for (const image of images) {
+        try {
+            const traceUrl = new URL('/trace', location.origin);
+            traceUrl.searchParams.set('code', image.dataset.traceQrCode);
+            image.src = await window.generateQrCode(traceUrl.href);
+        } catch (error) {
+            image.alt = `QR code unavailable for ${image.dataset.traceQrCode}`;
+        }
+    }
 }
 
 /* ---------- home map: the signed-in user's own location ---------- */
@@ -2678,41 +2825,79 @@ async function initPage() {
             case 'seller-sales': openSellerSales(id); break;
             case 'batch-allocation': openBatchAllocation(id).catch((error) => toast(error.message, 'error')); break;
             case 'order-accept':
-                updateOrderStatus(id, 'accepted').then(() => toast('Order accepted.', 'success')).catch((error) => toast(error.message, 'error'));
+                runOrderButton(el, 'Accepting...', async () => {
+                    await updateOrderStatus(id, 'accepted');
+                    toast('Order accepted. The buyer has been notified.', 'success');
+                }).catch((error) => toast(error.message, 'error'));
                 break;
             case 'order-reject':
                 if (confirm('Reject this order? Its reserved batch quantity will be returned to inventory.')) {
-                    updateOrderStatus(id, 'rejected').then(() => toast('Order rejected and inventory released.', 'success')).catch((error) => toast(error.message, 'error'));
+                    runOrderButton(el, 'Rejecting...', async () => {
+                        await updateOrderStatus(id, 'rejected');
+                        toast('Order rejected and inventory released.', 'success');
+                    }).catch((error) => toast(error.message, 'error'));
                 }
                 break;
             case 'cancel-order':
                 if (confirm('Cancel this order? Reserved batch quantity will be returned if cancellation is allowed.')) {
-                    updateOrderStatus(id, 'cancelled').then(() => toast('Order cancelled.', 'success')).catch((error) => toast(error.message, 'error'));
+                    runOrderButton(el, 'Cancelling...', async () => {
+                        await updateOrderStatus(id, 'cancelled');
+                        toast('Order cancelled.', 'success');
+                    }).catch((error) => toast(error.message, 'error'));
                 }
                 break;
             case 'pay-order':
-                startOnlinePayment(id).catch((error) => toast(error.message, 'error'));
+                runOrderButton(el, 'Opening payment...', () => startOnlinePayment(id)).catch((error) => toast(error.message, 'error'));
                 break;
             case 'collect-cod':
                 if (confirm('Confirm that the buyer paid the COD amount?')) {
-                    api(`/orders/${encodeURIComponent(id)}/collect-payment`, { method: 'POST' })
-                        .then(() => Promise.all([loadOrders(), loadNotifications()]))
-                        .then(() => toast('COD payment recorded.', 'success'))
-                        .catch((error) => toast(error.message, 'error'));
+                    runOrderButton(el, 'Recording payment...', async () => {
+                        await api(`/orders/${encodeURIComponent(id)}/collect-payment`, { method: 'POST' });
+                        await Promise.all([loadOrders(), loadNotifications()]);
+                        toast('COD payment recorded.', 'success');
+                    }).catch((error) => toast(error.message, 'error'));
                 }
                 break;
             case 'order-status': {
                 const status = el.dataset.status;
                 let extra = {};
-                if (status === 'shipped') {
-                    const shippingProvider = prompt('Shipping provider (required):', '');
-                    if (!shippingProvider || !shippingProvider.trim()) break;
-                    const trackingNumber = prompt('Tracking number (optional):', '') || '';
-                    extra = { shipping_provider: shippingProvider.trim(), tracking_number: trackingNumber.trim() };
-                }
-                updateOrderStatus(id, status, extra).then(() => toast('Order status updated.', 'success')).catch((error) => toast(error.message, 'error'));
+                runOrderButton(el, status === 'ready_for_shipment' ? 'Creating trace QR...' : 'Updating order...', async () => {
+                    await updateOrderStatus(id, status, extra);
+                    toast(status === 'ready_for_shipment' ? 'Order prepared. Traceability and QR codes are ready.' : 'Order status updated.', 'success');
+                }).catch((error) => toast(error.message, 'error'));
                 break;
             }
+            case 'choose-transporter':
+                openTransporterChooser(id, el).catch((error) => toast(error.message, 'error'));
+                break;
+            case 'retry-order-qrs':
+                runOrderButton(el, 'Generating QR codes...', async () => {
+                    await saveOrderTraceQrs(id);
+                    await loadOrders();
+                    toast('Trace QR codes generated and saved.', 'success');
+                }).catch((error) => toast(error.message, 'error'));
+                break;
+            case 'assign-transporter':
+                runOrderButton(el, 'Sending request...', async () => {
+                    await api(`/orders/${encodeURIComponent(id)}/shipping`, {
+                        method: 'POST',
+                        body: { transporter_id: Number(el.dataset.transporterId) }
+                    });
+                    closeModal('transporter-chooser-modal');
+                    await Promise.all([loadOrders(), loadNotifications()]);
+                    toast('Shipping request sent to the transporter.', 'success');
+                }).catch((error) => toast(error.message, 'error'));
+                break;
+            case 'shipping-update':
+                runOrderButton(el, el.dataset.status === 'accepted' ? 'Accepting...' : 'Updating delivery...', async () => {
+                    await api(`/transporter/shipments/${encodeURIComponent(id)}`, {
+                        method: 'PUT',
+                        body: { status: el.dataset.status }
+                    });
+                    await Promise.all([loadOrders(), loadNotifications()]);
+                    toast(el.dataset.status === 'rejected' ? 'Shipping request declined.' : 'Shipping progress updated.', 'success');
+                }).catch((error) => toast(error.message, 'error'));
+                break;
             case 'cart': {
                 const listing = listingById(id);
                 if (listing && (listing.batches || []).length > 1) viewProductDetails(id);

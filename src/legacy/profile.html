@@ -6,6 +6,10 @@
     <title>AgriTrace - My Profile</title>
     <link rel="stylesheet" href="styled.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .farmer-trace-button-spinner { width: 1em; height: 1em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; display: inline-block; vertical-align: middle; animation: profile-spinner .7s linear infinite; }
+        @keyframes profile-spinner { to { transform: rotate(360deg); } }
+    </style>
 </head>
 <body>
 
@@ -147,22 +151,37 @@
                     <div class="field"><label for="p-email">Email Address</label><input type="email" id="p-email" disabled><div class="field-help">Email is used to sign in and cannot be changed here.</div></div>
                     <div class="field"><label for="p-type">User Type</label><select id="p-type"></select></div>
                 </div>
+                <section id="transporter-profile-fields" class="hidden" style="margin-top: 20px; padding: 16px; border: 1px solid var(--border-color); border-radius: 12px;">
+                    <h3><i class="fa-solid fa-truck-fast" style="color: var(--primary);"></i> Transporter shipping profile</h3>
+                    <p class="field-help">Your account name is used automatically on shipping requests. Add your operating area and vehicle so nearby farmers can find you.</p>
+                    <div class="form-grid" style="margin-top: 12px;">
+                        <div class="field span-2"><label for="transporter-name">Transporter name</label><input id="transporter-name" readonly><div class="field-help">Set this in your first and last name above.</div></div>
+                        <div class="field span-2"><label for="transport-origin">Logistics origin / operating area</label><input id="transport-origin" maxlength="255" placeholder="e.g. Naga City delivery hub"></div>
+                        <div class="field"><label for="vehicle-number">Vehicle plate number</label><input id="vehicle-number" maxlength="50" placeholder="ABC 1234"></div>
+                        <div class="field"><label for="vehicle-type">Vehicle type</label>
+                            <select id="vehicle-type">
+                                <option value="">Select a vehicle</option><option>Motorcycle</option><option>Tricycle</option>
+                                <option>Van</option><option>Pickup truck</option><option>Refrigerated truck</option><option>Truck</option><option>Other</option>
+                            </select>
+                        </div>
+                    </div>
+                </section>
                 <div class="span-2" style="margin-top: 18px;">
                     <label style="font-size: 0.8rem; color: var(--text-muted);">Map location (drag the pin to adjust it)</label>
                     <div style="display: flex; gap: 8px; margin: 8px 0; flex-wrap: wrap;">
                         <input id="loc-search" type="search" placeholder="Search an address" aria-label="Search an address" style="flex: 1; min-width: 180px;">
                         <button id="loc-search-submit" type="button" class="btn-muted" onclick="searchLocation()">Find</button>
-                        <button type="button" class="btn-muted" onclick="useMyLocation()"><i class="fa-solid fa-location-crosshairs"></i> Use my location</button>
+                        <button type="button" class="btn-muted" id="use-profile-location" onclick="useMyLocation()"><i class="fa-solid fa-location-crosshairs"></i> Use my location</button>
                     </div>
                     <div id="profile-map" style="height: 280px; border-radius: 12px; border: 1px solid var(--border-color);"></div>
                     <div style="display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 8px; flex-wrap: wrap;">
                         <p id="loc-label" style="font-size: 0.8rem; color: var(--text-muted);">No location set yet.</p>
-                        <button type="button" class="btn-primary" onclick="saveLocation()">Save location</button>
+                        <button type="button" class="btn-primary" id="save-location-button" onclick="saveLocation()">Save location</button>
                     </div>
                 </div>
                 <div class="form-actions">
                     <button type="button" class="btn-muted" onclick="fillProfileForm()">Reset</button>
-                    <button type="submit" class="btn-primary">Save Changes</button>
+                    <button type="submit" class="btn-primary" id="profile-save-button">Save Changes</button>
                 </div>
             </form>
 

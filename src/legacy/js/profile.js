@@ -5,6 +5,24 @@ let profileProducts = [];
 let editingProfilePost = null;
 let viewingOwnProfile = true;
 
+function setProfileButtonLoading(button, loading, message = 'Saving...') {
+    if (!button) return;
+    if (loading) {
+        if (button.dataset.loading === 'true') return;
+        button.dataset.loading = 'true';
+        button.dataset.originalHtml = button.innerHTML;
+        button.disabled = true;
+        button.setAttribute('aria-busy', 'true');
+        button.innerHTML = `<span class="farmer-trace-button-spinner" aria-hidden="true"></span> ${escapeHtml(message)}`;
+    } else if (button.dataset.loading === 'true') {
+        button.innerHTML = button.dataset.originalHtml || '';
+        button.disabled = false;
+        button.removeAttribute('aria-busy');
+        delete button.dataset.loading;
+        delete button.dataset.originalHtml;
+    }
+}
+
 function publicFarmLocation(farm) {
     return [farm.municipality, farm.province].filter(Boolean).join(', ') || 'Location not set';
 }
@@ -83,6 +101,15 @@ function fillProfileForm() {
     const roleField = document.getElementById('p-type').closest('.field');
     roleField.classList.toggle('hidden', !isAdmin(u));
     document.getElementById('p-type').disabled = !isAdmin(u);
+    const transporterFields = document.getElementById('transporter-profile-fields');
+    if (transporterFields) {
+        const isTransporter = u.role === 'transporter';
+        transporterFields.classList.toggle('hidden', !isTransporter);
+        document.getElementById('transporter-name').value = fullName(u);
+        document.getElementById('transport-origin').value = u.transport_origin || '';
+        document.getElementById('vehicle-number').value = u.vehicle_number || '';
+        document.getElementById('vehicle-type').value = u.vehicle_type || '';
+    }
 }
 
 async function refreshProfile() {
@@ -298,23 +325,37 @@ async function saveProfile(event) {
     const age = Number(get('p-age'));
     if (!get('p-first') || !get('p-last')) { toast('First and last name are required.', 'error'); return; }
     if (!(age >= 18)) { toast('Age must be 18 or older.', 'error'); return; }
+    const button = document.getElementById('profile-save-button');
+    const body = {
+        first_name: get('p-first'),
+        middle_name: get('p-middle'),
+        last_name: get('p-last'),
+        age,
+        gender: document.getElementById('p-gender').value,
+        contact_number: get('p-contact'),
+        address: get('p-address')
+    };
+    if (profileUser.role === 'transporter') {
+        body.transport_origin = get('transport-origin');
+        body.vehicle_number = get('vehicle-number');
+        body.vehicle_type = document.getElementById('vehicle-type').value;
+        if (!body.transport_origin || !body.vehicle_number || !body.vehicle_type) {
+            toast('Complete your logistics origin, vehicle number, and vehicle type.', 'error');
+            return;
+        }
+    }
+    setProfileButtonLoading(button, true, 'Saving...');
     try {
         await api(`/update/${profileUser.id}`, {
             method: 'PUT',
-            body: {
-                first_name: get('p-first'),
-                middle_name: get('p-middle'),
-                last_name: get('p-last'),
-                age,
-                gender: document.getElementById('p-gender').value,
-                contact_number: get('p-contact'),
-                address: get('p-address')
-            }
+            body
         });
         await refreshProfile();
         toast('Profile saved.');
     } catch (error) {
         toast(error.message, 'error');
+    } finally {
+        setProfileButtonLoading(button, false);
     }
 }
 
@@ -430,6 +471,9 @@ function placeProfilePin(lat, lng, label) {
         profileMap.setView([lat, lng], 16);
     }
     document.getElementById('loc-label').textContent = label || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    if (profileUser && profileUser.role === 'transporter' && label) {
+        document.getElementById('p-address').value = label;
+    }
 }
 
 async function pinFromCoordinates(lat, lng) {
@@ -444,8 +488,7 @@ async function searchLocation() {
     const text = input.value.trim();
     if (!text) { toast('Type an address to search.', 'error'); return; }
     input.disabled = true;
-    button.disabled = true;
-    button.textContent = 'Searching...';
+    setProfileButtonLoading(button, true, 'Searching...');
     try {
         const found = await geoSearch(text);
         if (!found) { toast('No place matched that address. Try a nearby landmark.', 'error'); return; }
@@ -454,31 +497,53 @@ async function searchLocation() {
         toast(error.message || 'The address search is not available right now.', 'error');
     } finally {
         input.disabled = false;
-        button.disabled = false;
-        button.textContent = 'Find';
+        setProfileButtonLoading(button, false);
     }
 }
 
 function useMyLocation() {
     if (!navigator.geolocation) { toast('Your browser cannot share its location.', 'error'); return; }
+    const button = document.getElementById('use-profile-location');
+    setProfileButtonLoading(button, true, 'Locating...');
     navigator.geolocation.getCurrentPosition(
-        (pos) => pinFromCoordinates(pos.coords.latitude, pos.coords.longitude),
-        () => toast('Location access was denied. Drag the pin to set your location.', 'error'),
+        async (pos) => {
+            try {
+                await pinFromCoordinates(pos.coords.latitude, pos.coords.longitude);
+            } finally {
+                setProfileButtonLoading(button, false);
+            }
+        },
+        () => {
+            setProfileButtonLoading(button, false);
+            toast('Location access was denied. Drag the pin to set your location.', 'error');
+        },
         { enableHighAccuracy: true, timeout: 15000 }
     );
 }
 
 async function saveLocation() {
     if (!profileLocation) { toast('Place the pin on the map first.', 'error'); return; }
+    const button = document.getElementById('save-location-button');
+    setProfileButtonLoading(button, true, 'Saving location...');
     try {
+        const body = {
+            latitude: profileLocation.lat,
+            longitude: profileLocation.lng,
+            location_label: profileLocation.label || null
+        };
+        if (profileUser.role === 'transporter' && profileLocation.label) {
+            body.address = document.getElementById('p-address').value.trim() || profileLocation.label;
+        }
         await api(`/update/${profileUser.id}`, {
             method: 'PUT',
-            body: { latitude: profileLocation.lat, longitude: profileLocation.lng, location_label: profileLocation.label || null }
+            body
         });
         await refreshProfile();
         toast('Location saved. It now appears on your dashboard map.');
     } catch (error) {
         toast(error.message, 'error');
+    } finally {
+        setProfileButtonLoading(button, false);
     }
 }
 
