@@ -20,6 +20,12 @@ let editingListingId = null;
 let activeReviewListingId = null;
 let activeSalesListingId = null;
 let activeReportPostId = null;
+let checkoutMap = null;
+let checkoutMarker = null;
+let checkoutLocation = null;
+let checkoutAddressAutoFilled = false;
+let orderLocationMaps = [];
+let farmerHubMap = null;
 let farmerApplicationLoaded = false;
 let editPostPreviewUrls = [];
 let activeContactId = null;
@@ -995,11 +1001,168 @@ function addToCartFromDetails() {
     const quantity = Number(document.getElementById('detail-quantity').value);
     if (addToCart(listing.listing_id, listing.batch_id, quantity)) closeModal('product-details-modal');
 }
+function validCoordinates(latitude, longitude) {
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+    return latitude !== null && latitude !== '' && longitude !== null && longitude !== ''
+        && Number.isFinite(lat) && Number.isFinite(lng)
+        && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+}
+
+function setCheckoutLocation(latitude, longitude, label = '') {
+    if (!validCoordinates(latitude, longitude)) {
+        throw new Error('Choose a valid point on the delivery map.');
+    }
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+    checkoutLocation = { lat, lng };
+    if (checkoutMarker) checkoutMarker.setLatLng([lat, lng]);
+    if (checkoutMap) checkoutMap.setView([lat, lng], 16);
+    document.getElementById('checkout-location-status').textContent =
+        label || `Pinned location: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+}
+
+async function updateCheckoutLocationLabel(latitude, longitude) {
+    const pinnedLocation = checkoutLocation;
+    try {
+        const label = await geoReverse(latitude, longitude);
+        if (checkoutLocation !== pinnedLocation) return;
+        if (label) {
+            document.getElementById('checkout-location-status').textContent = `Pinned location: ${label}`;
+            const address = document.getElementById('checkout-delivery-address');
+            if (checkoutAddressAutoFilled || !address.value.trim()) {
+                address.value = label;
+                checkoutAddressAutoFilled = true;
+            }
+        }
+    } catch (error) {
+        if (checkoutLocation === pinnedLocation) {
+            document.getElementById('checkout-location-status').textContent =
+                `Pinned coordinates: ${Number(latitude).toFixed(6)}, ${Number(longitude).toFixed(6)}. Address lookup unavailable: ${error.message}`;
+            if (checkoutAddressAutoFilled) {
+                document.getElementById('checkout-delivery-address').value = '';
+                checkoutAddressAutoFilled = false;
+            }
+        }
+    }
+}
+
+async function initializeCheckoutMap() {
+    const mapElement = document.getElementById('checkout-location-map');
+    if (!mapElement) return;
+    if (checkoutMap) {
+        requestAnimationFrame(() => checkoutMap && checkoutMap.invalidateSize());
+        return;
+    }
+    const hasSavedLocation = me && validCoordinates(me.latitude, me.longitude);
+    const center = hasSavedLocation
+        ? [Number(me.latitude), Number(me.longitude)]
+        : [13.6218, 123.1948];
+    try {
+        const { map, L } = await createMap('checkout-location-map', center[0], center[1], hasSavedLocation ? 14 : 6);
+        checkoutMap = map;
+        if (hasSavedLocation) {
+            checkoutMarker = L.marker(center, { draggable: true }).addTo(map);
+            setCheckoutLocation(center[0], center[1], me.location_label || '');
+            checkoutMarker.on('dragend', async (event) => {
+                const point = event.target.getLatLng();
+                setCheckoutLocation(point.lat, point.lng);
+                await updateCheckoutLocationLabel(point.lat, point.lng);
+            });
+            checkoutMarker.hasCheckoutDragHandler = true;
+        }
+        map.on('click', async (event) => {
+            if (!checkoutMarker) checkoutMarker = L.marker(event.latlng, { draggable: true }).addTo(map);
+            setCheckoutLocation(event.latlng.lat, event.latlng.lng);
+            if (!checkoutMarker.hasCheckoutDragHandler) {
+                checkoutMarker.hasCheckoutDragHandler = true;
+                checkoutMarker.on('dragend', async (dragEvent) => {
+                    const point = dragEvent.target.getLatLng();
+                    setCheckoutLocation(point.lat, point.lng);
+                    await updateCheckoutLocationLabel(point.lat, point.lng);
+                });
+            }
+            await updateCheckoutLocationLabel(event.latlng.lat, event.latlng.lng);
+        });
+        requestAnimationFrame(() => map.invalidateSize());
+    } catch (error) {
+        document.getElementById('checkout-location-status').textContent = `Map unavailable: ${error.message}`;
+        throw error;
+    }
+}
+
+async function searchCheckoutLocation() {
+    const text = document.getElementById('checkout-location-search').value.trim();
+    if (!text) {
+        toast('Enter a place or address to search.', 'error');
+        return;
+    }
+    try {
+        const found = await geoSearch(text);
+        if (!found) throw new Error('No matching place was found. Try a nearby landmark.');
+        if (!checkoutMap) await initializeCheckoutMap();
+        if (!checkoutMarker) {
+            const { L } = await ensureLeaflet();
+            checkoutMarker = L.marker([found.lat, found.lng], { draggable: true }).addTo(checkoutMap);
+            checkoutMarker.on('dragend', async (event) => {
+                const point = event.target.getLatLng();
+                setCheckoutLocation(point.lat, point.lng);
+                await updateCheckoutLocationLabel(point.lat, point.lng);
+            });
+            checkoutMarker.hasCheckoutDragHandler = true;
+        }
+        setCheckoutLocation(found.lat, found.lng, found.label);
+        document.getElementById('checkout-delivery-address').value = found.label;
+        checkoutAddressAutoFilled = true;
+    } catch (error) {
+        toast(error.message, 'error');
+    }
+}
+
+function useCheckoutCurrentLocation() {
+    if (!navigator.geolocation) {
+        toast('Your browser cannot share its location.', 'error');
+        return;
+    }
+    const button = document.getElementById('checkout-use-location');
+    button.disabled = true;
+    navigator.geolocation.getCurrentPosition(async (position) => {
+        try {
+            if (!checkoutMap) await initializeCheckoutMap();
+            if (!checkoutMarker) {
+                const { L } = await ensureLeaflet();
+                checkoutMarker = L.marker([position.coords.latitude, position.coords.longitude], { draggable: true }).addTo(checkoutMap);
+                checkoutMarker.on('dragend', async (event) => {
+                    const point = event.target.getLatLng();
+                    setCheckoutLocation(point.lat, point.lng);
+                    await updateCheckoutLocationLabel(point.lat, point.lng);
+                });
+                checkoutMarker.hasCheckoutDragHandler = true;
+            }
+            setCheckoutLocation(position.coords.latitude, position.coords.longitude);
+            await updateCheckoutLocationLabel(position.coords.latitude, position.coords.longitude);
+        } catch (error) {
+            toast(error.message, 'error');
+        } finally {
+            button.disabled = false;
+        }
+    }, (error) => {
+        button.disabled = false;
+        toast(error.code === error.PERMISSION_DENIED
+            ? 'Location permission was denied. Select a point on the map instead.'
+            : 'Could not get your location. Check your device settings or select a point on the map.', 'error');
+    }, { enableHighAccuracy: true, timeout: 15000 });
+}
+
 function openCart() {
     updateCartUI();
     const address = document.getElementById('checkout-delivery-address');
-    if (!address.value.trim() && me && me.address) address.value = me.address;
+    if (!address.value.trim() && me && me.address) {
+        address.value = me.address;
+        checkoutAddressAutoFilled = true;
+    }
     openModal('cart-modal');
+    initializeCheckoutMap().catch((error) => toast(error.message, 'error'));
 }
 function updateCartUI() {
     if (!me) return;
@@ -1102,6 +1265,10 @@ async function checkout() {
     const paymentMethod = document.getElementById('checkout-payment-method').value;
     const deliveryAddress = document.getElementById('checkout-delivery-address').value.trim();
     if (!deliveryAddress) { toast('Enter a delivery address before placing your order.', 'error'); return; }
+    if (!checkoutLocation || !validCoordinates(checkoutLocation.lat, checkoutLocation.lng)) {
+        toast('Set the exact delivery location on the map before placing your order.', 'error');
+        return;
+    }
     const checkoutItems = chosen.map((item) => ({
         listing_id: item.id,
         batch_id: item.batch_id,
@@ -1111,7 +1278,9 @@ async function checkout() {
     const fingerprint = JSON.stringify({
         items: checkoutItems.map(({ listing_id, batch_id, quantity }) => ({ listing_id, batch_id, quantity })),
         paymentMethod,
-        deliveryAddress
+        deliveryAddress,
+        deliveryLatitude: checkoutLocation.lat,
+        deliveryLongitude: checkoutLocation.lng
     });
     const keyStorage = `agritrace-checkout:${me.id}`;
     let savedKey = null;
@@ -1131,7 +1300,9 @@ async function checkout() {
                 items: checkoutItems,
                 idempotency_key: idempotencyKey,
                 payment_method: paymentMethod,
-                delivery_address: deliveryAddress
+                delivery_address: deliveryAddress,
+                delivery_latitude: checkoutLocation.lat,
+                delivery_longitude: checkoutLocation.lng
             }
         });
         sessionStorage.removeItem(keyStorage);
@@ -1228,6 +1399,47 @@ function orderDateTime(value) {
     if (!value) return '';
     const date = new Date(String(value).replace(' ', 'T'));
     return Number.isNaN(date.getTime()) ? '' : date.toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+}
+function orderLocationMapHTML(order, label) {
+    if (!validCoordinates(order.delivery_latitude, order.delivery_longitude)) return '';
+    return `<section style="margin:10px 0;">
+        <h4 style="margin-bottom:6px;">${escapeHtml(label)}</h4>
+        <button type="button" class="btn-muted" onclick="toggleOrderLocationMap('${escapeHtml(order.order_id)}', this)">View delivery map</button>
+        <div id="order-delivery-map-${escapeHtml(order.order_id)}"
+            class="checkout-location-map hidden"
+            data-latitude="${escapeHtml(order.delivery_latitude)}"
+            data-longitude="${escapeHtml(order.delivery_longitude)}"
+            data-address="${escapeHtml(order.delivery_address || '')}"
+            aria-label="${escapeHtml(label)}"></div>
+    </section>`;
+}
+async function toggleOrderLocationMap(orderId, button) {
+    const element = document.getElementById(`order-delivery-map-${orderId}`);
+    if (!element) return;
+    const isOpening = element.classList.contains('hidden');
+    element.classList.toggle('hidden', !isOpening);
+    button.textContent = isOpening ? 'Hide delivery map' : 'View delivery map';
+    if (!isOpening || element.dataset.mapLoaded === 'true') return;
+    const latitude = Number(element.dataset.latitude);
+    const longitude = Number(element.dataset.longitude);
+    try {
+        const { map, L } = await createMap(element.id, latitude, longitude, 15);
+        if (!element.isConnected || element.classList.contains('hidden')) {
+            map.remove();
+            return;
+        }
+        L.marker([latitude, longitude]).addTo(map).bindPopup(escapeHtml(element.dataset.address || 'Delivery location'));
+        orderLocationMaps.push(map);
+        element.dataset.mapLoaded = 'true';
+    } catch (error) {
+        if (element.isConnected) {
+            element.textContent = `Delivery map unavailable: ${error.message}`;
+        }
+    }
+}
+function clearOrderLocationMaps() {
+    orderLocationMaps.forEach((map) => map.remove());
+    orderLocationMaps = [];
 }
 function orderProgressHTML(order) {
     if (['rejected', 'cancelled'].includes(order.status)) {
@@ -1531,6 +1743,7 @@ async function loadOrders() {
         : isMyShipments
             ? 'Review and update deliveries assigned to you.'
             : 'Track orders you placed with farmers.';
+    clearOrderLocationMaps();
     document.getElementById('orders-container').innerHTML = state.orders.length
         ? state.orders.map((o) => {
             const visibleOrderTotal = isManagingOrders && role === 'farmer'
@@ -1544,12 +1757,13 @@ async function loadOrders() {
                 </div>
                 ${orderProgressHTML(o)}
                 ${isManagingOrders ? `<p><strong>Ordered by:</strong> ${escapeHtml([o.buyer_first, o.buyer_last].filter(Boolean).join(' ') || o.buyer || 'Buyer')} · ${escapeHtml(o.buyer_email || '')}</p><p><strong>Order date:</strong> ${escapeHtml(orderDateTime(o.created_at) || '—')}</p>${o.status === 'awaiting_payment' ? '<p class="order-terminal">Waiting for the buyer to complete payment. Preparation unlocks after payment is confirmed.</p>' : ''}${role === 'farmer' ? farmerOrderActions(o) : ''}` : ''}
-                ${isMyShipments ? `<p><strong>Farmer:</strong> ${escapeHtml([o.farmer_first, o.farmer_last].filter(Boolean).join(' ') || o.farmer_username || 'Registered farmer')}<br><strong>Pickup:</strong> ${escapeHtml(o.origin || 'Registered farm')}<br><strong>Deliver to:</strong> ${escapeHtml(o.destination || o.delivery_address || 'Address not set')}</p><p><strong>Buyer:</strong> ${escapeHtml([o.buyer_first, o.buyer_last].filter(Boolean).join(' ') || o.buyer || 'Buyer')} · ${escapeHtml(String(o.shipping_status || '').replace(/_/g, ' '))}</p>${transporterOrderActions(o)}` : ''}
+                ${isMyShipments ? `<p><strong>Farmer:</strong> ${escapeHtml([o.farmer_first, o.farmer_last].filter(Boolean).join(' ') || o.farmer_username || 'Registered farmer')}<br><strong>Pickup:</strong> ${escapeHtml(o.origin || 'Registered farm')}<br><strong>Deliver to:</strong> ${escapeHtml(o.destination || o.delivery_address || 'Address not set')}</p><p><strong>Buyer:</strong> ${escapeHtml([o.buyer_first, o.buyer_last].filter(Boolean).join(' ') || o.buyer || 'Buyer')} · ${escapeHtml(String(o.shipping_status || '').replace(/_/g, ' '))}</p>${orderLocationMapHTML(o, 'Buyer delivery location')}${transporterOrderActions(o)}` : ''}
                 ${!isManagingOrders && o.payment_method === 'xendit' && o.status === 'awaiting_payment' && o.payment_status !== 'paid'
                     ? `<button type="button" class="btn-primary" data-action="pay-order" data-id="${escapeHtml(o.order_id)}">Complete online payment</button>` : ''}
                 ${me && ['seller', 'buyer', 'user'].includes(me.role) && ['pending', 'awaiting_farmer_acceptance', 'awaiting_payment', 'accepted'].includes(o.status)
                     ? `<button type="button" class="btn-muted" data-action="cancel-order" data-id="${escapeHtml(o.order_id)}">Cancel order</button>` : ''}
                 ${o.delivery_address && (!me || me.role !== 'transporter') ? `<p><strong>Deliver to:</strong> ${escapeHtml(o.delivery_address)}</p>` : ''}
+                ${!isManagingOrders && !isMyShipments ? orderLocationMapHTML(o, 'Delivery location') : ''}
                 ${o.assignment_id && me && me.role !== 'transporter' ? `<p><strong>Transporter:</strong> ${escapeHtml([o.transporter_first, o.transporter_last].filter(Boolean).join(' ') || o.transporter_username || 'Assigned')} · ${escapeHtml(String(o.shipping_status || '').replace(/_/g, ' '))}</p>` : ''}
                 ${o.shipping_provider ? `<p><strong>Delivery:</strong> ${escapeHtml(o.shipping_provider)}${o.tracking_number ? ` · Tracking ${escapeHtml(o.tracking_number)}` : ''}</p>` : ''}
                 ${o.items.map((it) => `
@@ -1641,7 +1855,8 @@ function farmerCardHTML(f) {
     </div>`;
 }
 function renderFarmers() {
-    let list = state.farmers.filter((f) => farmerFilter === 'All' || (farmerFilter === 'Following' ? f.following : false));
+    let list = state.farmers.filter((f) => f.role === 'farmer')
+        .filter((f) => farmerFilter === 'All' || (farmerFilter === 'Following' ? f.following : false));
     if (searchTerm) list = list.filter((f) =>
         [farmerName(f), f.farm_name, farmerFarmLocation(f)]
             .some((value) => String(value || '').toLowerCase().includes(searchTerm))
@@ -1657,6 +1872,7 @@ async function openFarmerProfile(id) {
     openModal('farmer-profile-modal');
     try {
         const farmer = await api(`/members/${encodeURIComponent(id)}`);
+        if (farmer.role !== 'farmer') throw new Error('Only farmer profiles are available in FarmerHub.');
         const name = farmerName(farmer);
         title.textContent = `${name}'s farm`;
         const products = farmer.products || [];
@@ -1685,6 +1901,9 @@ async function openFarmerProfile(id) {
                         ${farm.farm_description ? `<p style="margin-top: 8px; line-height: 1.5;">${escapeHtml(farm.farm_description)}</p>` : ''}
                         ${farm.farm_size ? `<p style="color: var(--text-muted); margin-top: 6px;">${escapeHtml(String(farm.farm_size))} ${escapeHtml(farm.farm_size_unit || 'units')}</p>` : ''}
                     </div>`).join('') : '<p style="color: var(--text-muted);">No registered farm information is available.</p>'}
+                ${(farmer.farms || []).some((farm) => validCoordinates(farm.latitude, farm.longitude))
+                    ? '<div id="farmer-hub-profile-map" class="farm-location-map" aria-label="Registered farmer farm locations"></div>'
+                    : ''}
             </section>
             <section class="widget"><div class="widget-header"><h3>Products for sale</h3></div>
                 <div class="market-grid-layout">${products.length ? products.map(productCardHTML).join('') : emptyBlock('fa-box-open', 'No products listed', 'This farmer has not listed products yet.')}</div>
@@ -1692,9 +1911,41 @@ async function openFarmerProfile(id) {
             <section class="widget"><div class="widget-header"><h3>Community posts</h3></div>
                 <div class="stack-list">${farmer.posts && farmer.posts.length ? farmer.posts.map(postCardHTML).join('') : emptyBlock('fa-newspaper', 'No posts yet', 'This farmer has not shared a post yet.')}</div>
             </section>`;
+        await renderFarmerHubMap(farmer.farms || []);
     } catch (error) {
         content.innerHTML = emptyBlock('fa-triangle-exclamation', 'Unable to load farmer profile', 'Please try again in a moment.');
         toast(error.message, 'error');
+    }
+    async function renderFarmerHubMap(farms) {
+        if (farmerHubMap) {
+            farmerHubMap.remove();
+            farmerHubMap = null;
+        }
+        const element = document.getElementById('farmer-hub-profile-map');
+        const locatedFarms = farms.filter((farm) => validCoordinates(farm.latitude, farm.longitude));
+        if (!element || !locatedFarms.length) return;
+        try {
+            const first = locatedFarms[0];
+            const { map, L } = await createMap(
+                element.id,
+                Number(first.latitude),
+                Number(first.longitude),
+                locatedFarms.length > 1 ? 10 : 14
+            );
+            if (!element.isConnected) {
+                map.remove();
+                return;
+            }
+            farmerHubMap = map;
+            const markers = locatedFarms.map((farm) => L.marker([Number(farm.latitude), Number(farm.longitude)])
+                .addTo(map)
+                .bindPopup(escapeHtml(farm.farm_name || 'Registered farm')));
+            if (markers.length > 1) {
+                map.fitBounds(L.featureGroup(markers).getBounds().pad(0.15), { maxZoom: 14 });
+            }
+        } catch (error) {
+            if (element.isConnected) element.textContent = `Farm map unavailable: ${error.message}`;
+        }
     }
 }
 function filterFarmers(category, btn) {
@@ -2519,6 +2770,7 @@ async function openFarmerTraceForm(type, recordId = '', batchId = '') {
                 ] },
                 { name: 'unit', label: 'Unit', required: true, value: 'kg', placeholder: 'kg, bundles, bunches…' },
                 { name: 'harvest_date', label: 'Harvest date', type: 'date', required: true },
+                { name: 'quality_grade', label: 'Harvest quality grade', required: true, maxlength: '50', placeholder: 'e.g. Grade A, Premium, Class 1' },
                 { name: 'expiration_date', label: 'Expiration date (optional)', type: 'date' }
             ]
         },
@@ -2572,6 +2824,7 @@ async function openFarmerTraceForm(type, recordId = '', batchId = '') {
             { name: 'quantity', label: 'Quantity', type: 'number', required: true, min: '0.01', step: '0.01' },
             { name: 'unit', label: 'Unit', required: true, placeholder: 'kg, crates, bunches…' },
             { name: 'harvest_date', label: 'Harvest date', type: 'date', required: true },
+            { name: 'quality_grade', label: 'Harvest quality grade', required: true, maxlength: '50', placeholder: 'e.g. Grade A, Premium, Class 1' },
             { name: 'expiration_date', label: 'Expiration date (optional)', type: 'date' },
             { name: 'current_status', label: 'Status', type: 'select', required: true, value: 'harvested', options: [
                 ['harvested', 'Harvested'], ['collected', 'Collected'], ['in_transit', 'In transit'],
@@ -2628,7 +2881,7 @@ async function openFarmerTraceForm(type, recordId = '', batchId = '') {
         if (field.type === 'textarea') {
             return `<div class="input-group${full}">${label}<textarea id="farmer-trace-${field.name}" name="${field.name}" rows="3"${required}></textarea></div>`;
         }
-        return `<div class="input-group${full}">${label}<input id="farmer-trace-${field.name}" name="${field.name}" type="${field.type || 'text'}" value="${escapeHtml(field.value || '')}" placeholder="${escapeHtml(field.placeholder || '')}"${field.min ? ` min="${field.min}"` : ''}${field.step ? ` step="${field.step}"` : ''}${field.readonly ? ' readonly' : ''}${required}></div>`;
+        return `<div class="input-group${full}">${label}<input id="farmer-trace-${field.name}" name="${field.name}" type="${field.type || 'text'}" value="${escapeHtml(field.value || '')}" placeholder="${escapeHtml(field.placeholder || '')}"${field.min ? ` min="${field.min}"` : ''}${field.step ? ` step="${field.step}"` : ''}${field.maxlength ? ` maxlength="${field.maxlength}"` : ''}${field.readonly ? ' readonly' : ''}${required}></div>`;
     }).join('');
     if (type === 'batches' && me.role === 'farmer' && !record) {
         document.getElementById('farmer-trace-form-fields').insertAdjacentHTML('beforeend', `
@@ -2776,7 +3029,7 @@ function onSearch(value) {
 function renderSearchResults(query) {
     const results = state.searchResults || {};
     const products = results.products || [];
-    const farmers = results.farmers || [];
+    const farmers = (results.farmers || []).filter((farmer) => farmer.role === 'farmer');
     const farms = results.farms || [];
     const total = products.length + farmers.length + farms.length;
     document.getElementById('search-results-summary').textContent = `${total} related result${total === 1 ? '' : 's'} for "${query}"`;
@@ -3134,7 +3387,21 @@ async function initPage() {
 }
 
 const dashboardInitPage = initPage;
+function cleanupDashboardMaps() {
+    if (checkoutMap) checkoutMap.remove();
+    if (farmerHubMap) farmerHubMap.remove();
+    clearOrderLocationMaps();
+    checkoutMap = null;
+    checkoutMarker = null;
+    checkoutLocation = null;
+    checkoutAddressAutoFilled = false;
+    farmerHubMap = null;
+}
 initPage = async function () {
+    onPageTeardown(cleanupDashboardMaps);
+    listen(document.getElementById('checkout-delivery-address'), 'input', () => {
+        checkoutAddressAutoFilled = false;
+    });
     await dashboardInitPage();
     if (!paymentTraceRedirecting) await renderHomeMap();
 };

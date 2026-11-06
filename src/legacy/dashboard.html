@@ -26,6 +26,7 @@
         .farm-location-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
         #farm-location-status { color: var(--text-muted); font-size: 0.82rem; }
         .farm-location-map { height: 300px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); z-index: 0; }
+        .checkout-location-map { height: 280px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); z-index: 0; }
         .farmer-trace-form-grid textarea {
             width: 100%;
             padding: 10px 12px;
@@ -645,6 +646,16 @@
             </div>
             <div class="shopee-cart-body" id="cart-items-container"></div>
             <div class="shopee-footer">
+                <div class="field" style="flex: 1 1 100%; margin: 0;">
+                    <label for="checkout-location-search">Delivery map location</label>
+                    <div style="display:flex; gap:8px; margin:8px 0; flex-wrap:wrap;">
+                        <input id="checkout-location-search" type="search" placeholder="Search a place or address" aria-label="Search a delivery location" style="flex:1; min-width:180px;">
+                        <button class="btn-muted" type="button" onclick="searchCheckoutLocation()">Find</button>
+                        <button class="btn-muted" type="button" id="checkout-use-location" onclick="useCheckoutCurrentLocation()"><i class="fa-solid fa-location-crosshairs"></i> Use my location</button>
+                    </div>
+                    <p id="checkout-location-status" class="field-help">Search for a place, click the map, or drag the pin to set the exact delivery location.</p>
+                    <div id="checkout-location-map" class="checkout-location-map" role="application" aria-label="Select delivery location"></div>
+                </div>
                 <div class="field" style="flex: 1 1 100%; margin: 0;">
                     <label for="checkout-delivery-address">Delivery address</label>
                     <textarea id="checkout-delivery-address" rows="2" maxlength="1000" required

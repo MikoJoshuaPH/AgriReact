@@ -27,6 +27,44 @@ function publicFarmLocation(farm) {
     return [farm.municipality, farm.province].filter(Boolean).join(', ') || 'Location not set';
 }
 
+let profileFarmMap = null;
+async function renderProfileFarmMap() {
+    const element = document.getElementById('profile-farm-map');
+    if (profileFarmMap) {
+        profileFarmMap.remove();
+        profileFarmMap = null;
+    }
+    if (!element || !profileUser || profileUser.role !== 'farmer') {
+        if (element) element.classList.add('hidden');
+        return;
+    }
+    const farms = (profileUser.farms || []).filter((farm) => validMapCoordinates(farm.latitude, farm.longitude));
+    element.classList.toggle('hidden', farms.length === 0);
+    if (!farms.length) return;
+
+    try {
+        const first = farms[0];
+        const { map, L } = await createMap('profile-farm-map', Number(first.latitude), Number(first.longitude), farms.length > 1 ? 10 : 14);
+        profileFarmMap = map;
+        const markers = farms.map((farm) => L.marker([Number(farm.latitude), Number(farm.longitude)])
+            .addTo(map)
+            .bindPopup(escapeHtml(farm.farm_name || 'Registered farm')));
+        if (markers.length > 1) {
+            map.fitBounds(L.featureGroup(markers).getBounds().pad(0.15), { maxZoom: 14 });
+        }
+    } catch (error) {
+        element.textContent = `Farm map unavailable: ${error.message}`;
+    }
+}
+
+function validMapCoordinates(latitude, longitude) {
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+    return latitude !== null && latitude !== '' && longitude !== null && longitude !== ''
+        && Number.isFinite(lat) && Number.isFinite(lng)
+        && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+}
+
 function renderProfileFarm() {
     const card = document.getElementById('profile-farm-card');
     const details = document.getElementById('profile-farm-details');
@@ -119,6 +157,7 @@ async function refreshProfile() {
     fillProfileForm();
     renderProfileHeader();
     renderProfileFarm();
+    await renderProfileFarmMap();
     renderProfileProducts();
     await renderProfileQr();
     await loadProfilePosts();
@@ -433,6 +472,7 @@ async function initPage() {
             profileUser = await api(`/members/${encodeURIComponent(targetUserId)}`);
             renderProfileHeader();
             renderProfileFarm();
+            await renderProfileFarmMap();
             profileProducts = profileUser.products || [];
             renderProfileProducts();
             followButton.textContent = profileUser.following ? 'Following' : 'Add friend';
@@ -451,6 +491,7 @@ async function initPage() {
     fillProfileForm();
     renderProfileHeader();
     renderProfileFarm();
+    await renderProfileFarmMap();
     profileProducts = profileUser.products || [];
     renderProfileProducts();
     await renderProfileQr();
@@ -549,6 +590,13 @@ async function saveLocation() {
 
 const profileInitPage = initPage;
 initPage = async function () {
+    onPageTeardown(() => {
+        if (profileFarmMap) profileFarmMap.remove();
+        if (profileMap) profileMap.remove();
+        profileFarmMap = null;
+        profileMap = null;
+        profileMarker = null;
+    });
     await profileInitPage();
     if (!profileUser || !viewingOwnProfile) return;
     listen(document.getElementById('loc-search'), 'keydown', (event) => {

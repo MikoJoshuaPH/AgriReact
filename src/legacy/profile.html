@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="styled.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        .profile-farm-map { height: 280px; border: 1px solid var(--border-color); border-radius: 12px; margin-top: 14px; }
         .farmer-trace-button-spinner { width: 1em; height: 1em; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; display: inline-block; vertical-align: middle; animation: profile-spinner .7s linear infinite; }
         @keyframes profile-spinner { to { transform: rotate(360deg); } }
     </style>
@@ -85,6 +86,7 @@
             <section class="form-card" id="profile-farm-card">
                 <h3><i class="fa-solid fa-seedling" style="color: var(--primary);"></i> Registered Farm</h3>
                 <div id="profile-farm-details"></div>
+                <div id="profile-farm-map" class="profile-farm-map hidden" aria-label="Farmer's registered farm locations"></div>
             </section>
 
             <section class="form-card" id="profile-products-card">
