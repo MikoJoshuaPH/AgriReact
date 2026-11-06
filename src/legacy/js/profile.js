@@ -161,6 +161,147 @@ async function refreshProfile() {
     renderProfileProducts();
     await renderProfileQr();
     await loadProfilePosts();
+    await loadPaymongoAccount();
+}
+
+function renderPaymongoAccount(account) {
+    const card = document.getElementById('profile-paymongo-card');
+    const status = document.getElementById('profile-paymongo-status');
+    if (!card || !status || !profileUser) return;
+    card.classList.toggle('hidden', profileUser.role !== 'farmer');
+    if (profileUser.role !== 'farmer') return;
+
+    const accountStatus = account.account_status || 'not_started';
+    const identityStatus = account.identity_status || 'not_started';
+    const labels = {
+        not_started: 'Not started',
+        pending: 'Pending',
+        under_review: 'Under review',
+        activated: 'Activated',
+        declined: 'Declined'
+    };
+    status.textContent = `Account: ${labels[accountStatus] || accountStatus}. Identity verification: ${labels[identityStatus] || identityStatus}.`;
+    const isActivated = accountStatus === 'activated';
+    const hasAccount = accountStatus !== 'not_started';
+    const identityPassed = ['passed', 'passed_attestation_form'].includes(identityStatus);
+    document.getElementById('profile-paymongo-create').classList.toggle('hidden', hasAccount);
+    document.getElementById('profile-paymongo-verify').classList.toggle('hidden', !hasAccount || isActivated || identityPassed);
+    document.getElementById('profile-paymongo-refresh').classList.toggle('hidden', !hasAccount || isActivated);
+    document.getElementById('profile-paymongo-onboarding').classList.toggle(
+        'hidden',
+        !hasAccount || accountStatus !== 'pending' || !identityPassed
+    );
+}
+
+async function loadPaymongoAccount() {
+    const card = document.getElementById('profile-paymongo-card');
+    if (!card || !profileUser || profileUser.role !== 'farmer') return;
+    card.classList.remove('hidden');
+    try {
+        renderPaymongoAccount(await api('/farmer/paymongo-account'));
+    } catch (error) {
+        document.getElementById('profile-paymongo-status').textContent = `PayMongo account status unavailable: ${error.message}`;
+    }
+}
+
+async function createPaymongoAccount() {
+    const button = document.getElementById('profile-paymongo-create');
+    button.disabled = true;
+    try {
+        renderPaymongoAccount(await api('/farmer/paymongo-account', { method: 'POST', body: {} }));
+        toast('PayMongo account created. Continue with identity verification.');
+    } catch (error) {
+        toast(error.message, 'error');
+    } finally {
+        button.disabled = false;
+    }
+}
+
+async function refreshPaymongoAccount() {
+    const button = document.getElementById('profile-paymongo-refresh');
+    button.disabled = true;
+    try {
+        renderPaymongoAccount(await api('/farmer/paymongo-account'));
+    } catch (error) {
+        document.getElementById('profile-paymongo-status').textContent = `PayMongo account status unavailable: ${error.message}`;
+        toast(error.message, 'error');
+    } finally {
+        button.disabled = false;
+    }
+}
+
+async function startPaymongoVerification() {
+    const button = document.getElementById('profile-paymongo-verify');
+    button.disabled = true;
+    try {
+        const result = await api('/farmer/paymongo-account/verification', { method: 'POST', body: {} });
+        await refreshPaymongoAccount();
+        const status = document.getElementById('profile-paymongo-status');
+        status.append(document.createTextNode(' Complete identity verification in PayMongo: '));
+        const link = document.createElement('a');
+        link.href = result.verification_url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.textContent = 'Open verification';
+        status.appendChild(link);
+    } catch (error) {
+        toast(error.message, 'error');
+    } finally {
+        button.disabled = false;
+    }
+}
+
+async function activatePaymongoAccount(event) {
+    event.preventDefault();
+    const button = document.getElementById('profile-paymongo-activate');
+    button.disabled = true;
+    const get = (id) => document.getElementById(id).value.trim();
+    const body = {
+        date_of_birth: get('pm-date-of-birth'),
+        birth_city: get('pm-birth-city'),
+        nationality: get('pm-nationality').toUpperCase(),
+        nature_of_work: document.getElementById('pm-nature-of-work').value,
+        source_of_funds: document.getElementById('pm-source-of-funds').value,
+        source_of_funds_other: get('pm-source-other'),
+        source_of_funds_salary: get('pm-source-salary'),
+        person_tin: get('pm-person-tin'),
+        person_address: get('pm-person-address'),
+        person_city: get('pm-person-city'),
+        person_state: get('pm-person-state'),
+        person_postal_code: get('pm-person-postal'),
+        trade_name: get('pm-trade-name'),
+        business_type: document.getElementById('pm-business-type').value,
+        industry: get('pm-industry'),
+        business_description: get('pm-business-description'),
+        business_age: document.getElementById('pm-business-age').value,
+        business_size: document.getElementById('pm-business-size').value,
+        monthly_volume: document.getElementById('pm-monthly-volume').value,
+        business_tin: get('pm-business-tin'),
+        business_address: get('pm-business-address'),
+        business_city: get('pm-business-city'),
+        business_state: get('pm-business-state'),
+        business_postal_code: get('pm-business-postal')
+    };
+    try {
+        const account = await api('/farmer/paymongo-account/activate', { method: 'POST', body });
+        renderPaymongoAccount(account);
+        toast(account.account_status === 'activated'
+            ? 'Your PayMongo account is active. You can now accept orders.'
+            : 'Your PayMongo account details were submitted and are pending review.');
+    } catch (error) {
+        toast(error.message, 'error');
+    } finally {
+        button.disabled = false;
+    }
+}
+
+function updatePaymongoSourceFields() {
+    const source = document.getElementById('pm-source-of-funds');
+    if (!source) return;
+    document.getElementById('pm-source-other-field').classList.toggle('hidden', source.value !== 'other');
+    document.getElementById('pm-source-salary-field').classList.toggle('hidden', source.value !== 'salary');
+    document.getElementById('pm-source-other').required = source.value === 'other';
+    document.getElementById('pm-source-salary').required = source.value === 'salary';
 }
 
 async function renderProfileQr() {
@@ -496,6 +637,9 @@ async function initPage() {
     renderProfileProducts();
     await renderProfileQr();
     await loadProfilePosts();
+    await loadPaymongoAccount();
+    listen(document.getElementById('pm-source-of-funds'), 'change', updatePaymongoSourceFields);
+    updatePaymongoSourceFields();
     listen(document.getElementById('avatar-input'), 'change', (e) => handleAvatarChange(e.target));
     document.querySelectorAll('.sidebar .nav-item').forEach((n) => n.classList.toggle('active', n.dataset.view === 'profile'));
 }

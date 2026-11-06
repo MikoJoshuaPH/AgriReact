@@ -1327,6 +1327,9 @@ function orderPaymentBadge(order) {
     if (order.payment_status === 'payment_processing') return '<span class="status-pill"><i class="fa-solid fa-spinner"></i> Payment processing</span>';
     return '<span class="status-pill"><i class="fa-solid fa-clock"></i> Awaiting payment</span>';
 }
+function isOnlinePayment(order) {
+    return ['xendit', 'paymongo'].includes(order.payment_method);
+}
 function traceBlock(item, order) {
     if (!item.trace_code) return '';
     const prepared = ['ready_for_shipment', 'shipped', 'in_transit', 'out_for_delivery', 'delivered', 'completed'].includes(order.status);
@@ -1348,7 +1351,7 @@ function farmerOrderActions(order) {
             <button type="button" class="btn-muted" data-action="order-reject" data-id="${id}">Reject</button></div>`;
     }
     if (['accepted', 'confirmed'].includes(order.status)
-        && (order.payment_method !== 'xendit' || order.payment_status === 'paid')) {
+        && (!isOnlinePayment(order) || order.payment_status === 'paid')) {
         return `<button type="button" class="btn-primary" data-action="order-status" data-status="preparing" data-id="${id}">Start preparing</button>`;
     }
     if (order.status === 'preparing') {
@@ -1455,7 +1458,7 @@ function orderProgressHTML(order) {
         const event = history.find((item) => item.status === 'payment_paid' || item.payment_status === 'paid');
         return event ? orderDateTime(event.created_at) : orderDateTime(order.paid_at);
     })();
-    const online = order.payment_method === 'xendit';
+    const online = isOnlinePayment(order);
     const shippingStatuses = ['shipped', 'in_transit', 'out_for_delivery', 'delivered', 'completed'];
     const reviewDone = hasStatus('accepted', 'awaiting_payment', ...shippingStatuses) || ['accepted', 'awaiting_payment', 'preparing', 'ready_for_shipment', ...shippingStatuses].includes(order.status);
     const shippingDone = hasStatus(...shippingStatuses) || shippingStatuses.includes(order.status);
@@ -1553,8 +1556,8 @@ async function startOnlinePayment(orderId) {
     const result = await api(`/orders/${encodeURIComponent(orderId)}/payment`, {
         method: 'POST', body: { frontend_origin: location.origin }
     });
-    if (!result.invoice_url) throw new Error('The payment gateway did not return a payment link.');
-    location.assign(result.invoice_url);
+    if (!result.payment_url && !result.invoice_url) throw new Error('The payment gateway did not return a payment link.');
+    location.assign(result.payment_url || result.invoice_url);
 }
 async function openTransporterChooser(orderId, button) {
     await runOrderButton(button, 'Finding nearby transporters...', async () => {
@@ -1682,7 +1685,7 @@ async function loadOrders() {
                         ? state.orders.filter((order) => String(order.order_id) === String(paymentReturnOrderId))
                         : state.orders
                     ).filter((order) => ['unpaid', 'awaiting_payment', 'payment_processing'].includes(order.payment_status)
-                        && order.xendit_invoice_url).slice(0, 10);
+                        && order.payment_checkout_url).slice(0, 10);
                     const results = await Promise.all(pending.map(async (order) => {
                         try {
                             return await api(`/orders/${order.order_id}/payment-status`);
@@ -1758,7 +1761,7 @@ async function loadOrders() {
                 ${orderProgressHTML(o)}
                 ${isManagingOrders ? `<p><strong>Ordered by:</strong> ${escapeHtml([o.buyer_first, o.buyer_last].filter(Boolean).join(' ') || o.buyer || 'Buyer')} · ${escapeHtml(o.buyer_email || '')}</p><p><strong>Order date:</strong> ${escapeHtml(orderDateTime(o.created_at) || '—')}</p>${o.status === 'awaiting_payment' ? '<p class="order-terminal">Waiting for the buyer to complete payment. Preparation unlocks after payment is confirmed.</p>' : ''}${role === 'farmer' ? farmerOrderActions(o) : ''}` : ''}
                 ${isMyShipments ? `<p><strong>Farmer:</strong> ${escapeHtml([o.farmer_first, o.farmer_last].filter(Boolean).join(' ') || o.farmer_username || 'Registered farmer')}<br><strong>Pickup:</strong> ${escapeHtml(o.origin || 'Registered farm')}<br><strong>Deliver to:</strong> ${escapeHtml(o.destination || o.delivery_address || 'Address not set')}</p><p><strong>Buyer:</strong> ${escapeHtml([o.buyer_first, o.buyer_last].filter(Boolean).join(' ') || o.buyer || 'Buyer')} · ${escapeHtml(String(o.shipping_status || '').replace(/_/g, ' '))}</p>${orderLocationMapHTML(o, 'Buyer delivery location')}${transporterOrderActions(o)}` : ''}
-                ${!isManagingOrders && o.payment_method === 'xendit' && o.status === 'awaiting_payment' && o.payment_status !== 'paid'
+                ${!isManagingOrders && isOnlinePayment(o) && o.status === 'awaiting_payment' && o.payment_status !== 'paid'
                     ? `<button type="button" class="btn-primary" data-action="pay-order" data-id="${escapeHtml(o.order_id)}">Complete online payment</button>` : ''}
                 ${me && ['seller', 'buyer', 'user'].includes(me.role) && ['pending', 'awaiting_farmer_acceptance', 'awaiting_payment', 'accepted'].includes(o.status)
                     ? `<button type="button" class="btn-muted" data-action="cancel-order" data-id="${escapeHtml(o.order_id)}">Cancel order</button>` : ''}
