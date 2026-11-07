@@ -247,6 +247,7 @@ async function handleRegister(event) {
 
 function fillSignupRoles() {
     document.getElementById('reg-type').innerHTML = SIGNUP_ROLES
+        .filter((option) => option.role !== 'seller')
         .map((option) => `<option value="${option.role}">${option.label}</option>`).join('');
 }
 
