@@ -26,7 +26,6 @@
         .farm-location-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
         #farm-location-status { color: var(--text-muted); font-size: 0.82rem; }
         .farm-location-map { height: 300px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); z-index: 0; }
-        .checkout-location-map { height: 280px; border: 1px solid var(--border-color); border-radius: var(--radius-sm); z-index: 0; }
         .farmer-trace-form-grid textarea {
             width: 100%;
             padding: 10px 12px;
@@ -654,40 +653,47 @@
         <div class="modal shopee-cart">
             <div class="shopee-header">
                 <h2><i class="fa-solid fa-cart-shopping"></i> Shopping Cart</h2>
-                <button class="close-btn" style="color: white;" onclick="closeModal('cart-modal')"><i class="fa-solid fa-xmark"></i></button>
+                <button class="close-btn" type="button" aria-label="Close shopping cart" onclick="closeModal('cart-modal')"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="shopee-cart-body" id="cart-items-container"></div>
             <div class="shopee-footer">
-                <div class="field" style="flex: 1 1 100%; margin: 0;">
-                    <label for="checkout-location-search">Delivery map location</label>
-                    <div style="display:flex; gap:8px; margin:8px 0; flex-wrap:wrap;">
-                        <input id="checkout-location-search" type="search" placeholder="Search a place or address" aria-label="Search a delivery location" style="flex:1; min-width:180px;">
-                        <button class="btn-muted" type="button" onclick="searchCheckoutLocation()">Find</button>
-                        <button class="btn-muted" type="button" id="checkout-use-location" onclick="useCheckoutCurrentLocation()"><i class="fa-solid fa-location-crosshairs"></i> Use my location</button>
+                <div class="checkout-fields">
+                    <div class="field checkout-location-field">
+                        <label for="checkout-location-search">Delivery location</label>
+                        <div class="checkout-location-controls">
+                            <input id="checkout-location-search" type="search" placeholder="Search a place or address" aria-label="Search a delivery location">
+                            <button class="btn-muted" type="button" onclick="searchCheckoutLocation()">Find</button>
+                            <button class="btn-muted" type="button" id="checkout-use-location" onclick="useCheckoutCurrentLocation()"><i class="fa-solid fa-location-crosshairs"></i> Use my location</button>
+                        </div>
+                        <p id="checkout-location-status" class="field-help">Search for a place, click the map, or drag the pin to set the exact delivery location.</p>
                     </div>
-                    <p id="checkout-location-status" class="field-help">Search for a place, click the map, or drag the pin to set the exact delivery location.</p>
-                    <div id="checkout-location-map" class="checkout-location-map" role="application" aria-label="Select delivery location"></div>
+                    <div class="field checkout-address-field">
+                        <label for="checkout-delivery-address">Delivery address</label>
+                        <textarea id="checkout-delivery-address" rows="2" maxlength="1000" required
+                            placeholder="Enter the address where this order should be delivered"></textarea>
+                    </div>
+                    <div class="field checkout-payment-field">
+                        <label for="checkout-payment-method">Payment method</label>
+                        <select id="checkout-payment-method">
+                            <option value="xendit">Online Payment (Xendit)</option>
+                            <option value="cod">Cash on Delivery (COD)</option>
+                        </select>
+                        <div class="field-help">Online payment is processed and verified securely by Xendit. COD is paid upon delivery.</div>
+                    </div>
+                    <div class="checkout-map-field">
+                        <label for="checkout-location-map">Fine-tune location on map</label>
+                        <div id="checkout-location-map" class="checkout-location-map" role="application" aria-label="Select delivery location"></div>
+                    </div>
                 </div>
-                <div class="field" style="flex: 1 1 100%; margin: 0;">
-                    <label for="checkout-delivery-address">Delivery address</label>
-                    <textarea id="checkout-delivery-address" rows="2" maxlength="1000" required
-                        placeholder="Enter the address where this order should be delivered"></textarea>
-                </div>
-                <div class="field" style="flex: 1 1 100%; margin: 0;">
-                    <label for="checkout-payment-method">Payment method</label>
-                    <select id="checkout-payment-method">
-                        <option value="xendit">Online Payment (Xendit)</option>
-                        <option value="cod">Cash on Delivery (COD)</option>
-                    </select>
-                    <div class="field-help">Online payment is processed and verified securely by Xendit. COD is paid upon delivery.</div>
-                </div>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <input type="checkbox" id="select-all" onchange="toggleSelectAll(this)">
-                    <label for="select-all" style="color: var(--text-main);">Select All</label>
-                </div>
-                <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
-                    <div class="total" id="cart-total">Total: ₱0.00</div>
-                    <button class="btn-primary" id="checkout-btn" onclick="checkout()">Place Order</button>
+                <div class="checkout-actions">
+                    <label class="checkout-select-all" for="select-all">
+                        <input type="checkbox" id="select-all" onchange="toggleSelectAll(this)">
+                        Select all items
+                    </label>
+                    <div class="checkout-order">
+                        <div class="total" id="cart-total">Total: ₱0.00</div>
+                        <button class="btn-primary" id="checkout-btn" type="button" onclick="checkout()">Place Order</button>
+                    </div>
                 </div>
             </div>
         </div>

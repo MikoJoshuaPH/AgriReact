@@ -1220,7 +1220,7 @@ function updateCartUI() {
                 </div>
             </div>`;
         }).join('')
-        : '<p style="text-align:center; padding: 20px; color: var(--text-muted);">Your cart is empty.</p>';
+        : '<p class="cart-empty-state">Your cart is empty. Browse the marketplace to find fresh produce.</p>';
     const total = cart.filter((i) => i.checked).reduce((s, i) => {
         const live = listingById(i.id);
         return s + (live ? Number(live.price) : Number(i.price)) * i.qty;
