@@ -574,21 +574,33 @@
                 <h4 style="color: var(--text-main); margin-bottom: 5px;">Description & Stock</h4>
                 <p id="detail-desc" style="color: var(--text-muted); font-size: 0.9rem; line-height: 1.5;"></p>
             </div>
-            <div class="field hidden" id="detail-batch-picker-wrap">
-                <label for="detail-batch-picker">Available selling unit</label>
-                <select id="detail-batch-picker"></select>
-                <div class="field-help">Choose a unit to see its price, available quantity, and batch.</div>
-            </div>
-            <div class="field" id="detail-quantity-wrap">
-                <label for="detail-quantity">Quantity</label>
-                <input id="detail-quantity" type="number" min="0.01" step="0.01" value="1">
-            </div>
+            <section class="detail-order-panel" aria-label="Add product to cart">
+                <div class="field hidden" id="detail-batch-picker-wrap">
+                    <label for="detail-batch-picker">Selling unit and batch</label>
+                    <select id="detail-batch-picker"></select>
+                    <div class="field-help">Choose a unit to update its price and available stock.</div>
+                </div>
+                <div class="detail-order-controls">
+                    <div class="field" id="detail-quantity-wrap">
+                        <label for="detail-quantity">Quantity</label>
+                        <div class="detail-quantity-control">
+                            <button type="button" aria-label="Decrease quantity" onclick="adjustDetailQuantity(-1)">−</button>
+                            <input id="detail-quantity" type="number" min="0.01" step="0.01" value="1" inputmode="decimal">
+                            <button type="button" aria-label="Increase quantity" onclick="adjustDetailQuantity(1)">+</button>
+                        </div>
+                    </div>
+                    <div class="detail-order-summary">
+                        <span id="detail-stock">Select a product option to view stock.</span>
+                        <strong id="detail-line-total">Line total: —</strong>
+                    </div>
+                </div>
+                <div class="detail-order-actions">
+                    <button class="btn-muted" id="detail-save-btn" type="button" onclick="toggleSaveFromDetails()"><i class="fa-regular fa-heart"></i> Save</button>
+                    <button class="btn-primary" id="detail-cart-btn" type="button" onclick="handleDetailProductAction()">Add to Cart</button>
+                </div>
+            </section>
             <button type="button" class="btn-muted" id="detail-reviews-btn" data-action="detail-reviews"><i class="fa-solid fa-star"></i> Reviews &amp; Ratings</button>
             <button type="button" class="btn-muted hidden" id="detail-edit-product-btn" data-action="edit-product"><i class="fa-solid fa-pen"></i> Edit Product</button>
-            <div style="display: flex; gap: 10px;">
-                <button class="btn-muted" id="detail-save-btn" style="flex: 1;" onclick="toggleSaveFromDetails()"><i class="fa-regular fa-heart"></i> Save</button>
-                <button class="btn-primary" id="detail-cart-btn" style="flex: 2;" onclick="handleDetailProductAction()">Add to Cart</button>
-            </div>
         </div>
     </div>
 
@@ -664,10 +676,10 @@
                 <div class="field" style="flex: 1 1 100%; margin: 0;">
                     <label for="checkout-payment-method">Payment method</label>
                     <select id="checkout-payment-method">
-                        <option value="paymongo">Online Payment (PayMongo)</option>
+                        <option value="xendit">Online Payment (Xendit)</option>
                         <option value="cod">Cash on Delivery (COD)</option>
                     </select>
-                    <div class="field-help">Online payment is verified securely by PayMongo. COD is paid upon delivery.</div>
+                    <div class="field-help">Online payment is processed and verified securely by Xendit. COD is paid upon delivery.</div>
                 </div>
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <input type="checkbox" id="select-all" onchange="toggleSelectAll(this)">

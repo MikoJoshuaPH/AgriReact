@@ -675,6 +675,11 @@ function updateProductDetailsVariant(id) {
     const quantity = document.getElementById('detail-quantity');
     quantity.max = String(Math.max(0, Number(listing.stock) || 0));
     if (Number(quantity.value) > Number(quantity.max) || Number(quantity.value) <= 0) quantity.value = '1';
+    const stockText = Number(listing.stock) > 0
+        ? `${Number(listing.stock)} ${sellingUnitLabel(listing)} available`
+        : 'No stock available';
+    document.getElementById('detail-stock').textContent = stockText;
+    updateDetailLineTotal();
     const saved = state.saved.has(String(listing.listing_id));
     document.getElementById('detail-save-btn').innerHTML = `<i class="fa-${saved ? 'solid' : 'regular'} fa-heart"></i> ${saved ? 'Saved' : 'Save'}`;
     const cartBtn = document.getElementById('detail-cart-btn');
@@ -1000,6 +1005,25 @@ function addToCartFromDetails() {
     if (!listing) return;
     const quantity = Number(document.getElementById('detail-quantity').value);
     if (addToCart(listing.listing_id, listing.batch_id, quantity)) closeModal('product-details-modal');
+}
+function adjustDetailQuantity(change) {
+    const quantity = document.getElementById('detail-quantity');
+    const listing = listingById(document.getElementById('detail-batch-picker').value || detailListingId);
+    if (!listing) return;
+    const max = Number(listing.stock) || 0;
+    const minimum = Number(quantity.min) || 0.01;
+    if (max < minimum) return;
+    const current = Number(quantity.value) || minimum;
+    quantity.value = String(Math.min(max, Math.max(minimum, current + change)));
+    updateDetailLineTotal();
+}
+function updateDetailLineTotal() {
+    const listing = listingById(document.getElementById('detail-batch-picker').value || detailListingId);
+    const quantity = Number(document.getElementById('detail-quantity').value);
+    const total = listing && listing.batch_id && Number.isFinite(quantity) && quantity > 0
+        ? money(Number(listing.price) * quantity)
+        : '—';
+    document.getElementById('detail-line-total').textContent = `Line total: ${total}`;
 }
 function validCoordinates(latitude, longitude) {
     const lat = Number(latitude);
@@ -1328,7 +1352,7 @@ function orderPaymentBadge(order) {
     return '<span class="status-pill"><i class="fa-solid fa-clock"></i> Awaiting payment</span>';
 }
 function isOnlinePayment(order) {
-    return ['xendit', 'paymongo'].includes(order.payment_method);
+    return order.payment_method !== 'cod';
 }
 function traceBlock(item, order) {
     if (!item.trace_code) return '';
@@ -1762,7 +1786,9 @@ async function loadOrders() {
                 ${isManagingOrders ? `<p><strong>Ordered by:</strong> ${escapeHtml([o.buyer_first, o.buyer_last].filter(Boolean).join(' ') || o.buyer || 'Buyer')} · ${escapeHtml(o.buyer_email || '')}</p><p><strong>Order date:</strong> ${escapeHtml(orderDateTime(o.created_at) || '—')}</p>${o.status === 'awaiting_payment' ? '<p class="order-terminal">Waiting for the buyer to complete payment. Preparation unlocks after payment is confirmed.</p>' : ''}${role === 'farmer' ? farmerOrderActions(o) : ''}` : ''}
                 ${isMyShipments ? `<p><strong>Farmer:</strong> ${escapeHtml([o.farmer_first, o.farmer_last].filter(Boolean).join(' ') || o.farmer_username || 'Registered farmer')}<br><strong>Pickup:</strong> ${escapeHtml(o.origin || 'Registered farm')}<br><strong>Deliver to:</strong> ${escapeHtml(o.destination || o.delivery_address || 'Address not set')}</p><p><strong>Buyer:</strong> ${escapeHtml([o.buyer_first, o.buyer_last].filter(Boolean).join(' ') || o.buyer || 'Buyer')} · ${escapeHtml(String(o.shipping_status || '').replace(/_/g, ' '))}</p>${orderLocationMapHTML(o, 'Buyer delivery location')}${transporterOrderActions(o)}` : ''}
                 ${!isManagingOrders && isOnlinePayment(o) && o.status === 'awaiting_payment' && o.payment_status !== 'paid'
-                    ? `<button type="button" class="btn-primary" data-action="pay-order" data-id="${escapeHtml(o.order_id)}">Complete online payment</button>` : ''}
+                    ? (o.payment_method === 'xendit'
+                        ? `<button type="button" class="btn-primary" data-action="pay-order" data-id="${escapeHtml(o.order_id)}">Complete online payment</button>`
+                        : '<p class="order-terminal">Online payment is unavailable for this legacy order. Contact support for assistance.</p>') : ''}
                 ${me && ['seller', 'buyer', 'user'].includes(me.role) && ['pending', 'awaiting_farmer_acceptance', 'awaiting_payment', 'accepted'].includes(o.status)
                     ? `<button type="button" class="btn-muted" data-action="cancel-order" data-id="${escapeHtml(o.order_id)}">Cancel order</button>` : ''}
                 ${o.delivery_address && (!me || me.role !== 'transporter') ? `<p><strong>Deliver to:</strong> ${escapeHtml(o.delivery_address)}</p>` : ''}
@@ -3370,6 +3396,7 @@ async function initPage() {
     listen(document.getElementById('detail-batch-picker'), 'change', (event) => {
         updateProductDetailsVariant(event.target.value);
     });
+    listen(document.getElementById('detail-quantity'), 'input', updateDetailLineTotal);
     listen(document.getElementById('conv-list'), 'click', (e) => {
         const el = e.target.closest('[data-contact]');
         if (el) selectContact(el.dataset.contact);

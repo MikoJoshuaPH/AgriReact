@@ -89,75 +89,9 @@
                 <div id="profile-farm-map" class="profile-farm-map hidden" aria-label="Farmer's registered farm locations"></div>
             </section>
 
-            <section class="form-card owner-only hidden" id="profile-paymongo-card">
-                <h3><i class="fa-solid fa-wallet" style="color: var(--primary);"></i> PayMongo seller account</h3>
-                <p class="field-help">Create and activate your linked PayMongo merchant account here. You must finish onboarding before you can accept orders. PayMongo receives the identity and business details below directly; AgriTrace does not save those details.</p>
-                <p id="profile-paymongo-status" role="status" aria-live="polite" style="margin: 12px 0;"></p>
-                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button class="btn-primary" id="profile-paymongo-create" type="button" onclick="createPaymongoAccount()">Create PayMongo account</button>
-                    <button class="btn-primary hidden" id="profile-paymongo-verify" type="button" onclick="startPaymongoVerification()">Continue identity verification</button>
-                    <button class="btn-muted hidden" id="profile-paymongo-refresh" type="button" onclick="refreshPaymongoAccount()">Refresh account status</button>
-                </div>
-                <form id="profile-paymongo-onboarding" class="hidden" onsubmit="activatePaymongoAccount(event)" style="margin-top: 20px;">
-                    <h4>Representative details</h4>
-                    <p class="field-help">Use the representative's legal information. Required fields are submitted securely to PayMongo for verification.</p>
-                    <div class="form-grid" style="margin-top: 12px;">
-                        <div class="field"><label for="pm-date-of-birth">Date of birth</label><input id="pm-date-of-birth" type="date" required></div>
-                        <div class="field"><label for="pm-birth-city">City of birth</label><input id="pm-birth-city" maxlength="100" required></div>
-                        <div class="field"><label for="pm-nationality">Nationality (ISO 3166-1 alpha-3)</label><input id="pm-nationality" value="PHL" pattern="[A-Za-z]{3}" maxlength="3" required></div>
-                        <div class="field"><label for="pm-nature-of-work">Nature of work</label>
-                            <select id="pm-nature-of-work" required>
-                                <option value="self_employed">Self-employed</option><option value="employed_locally">Employed locally</option>
-                                <option value="retired">Retired</option><option value="pensioner">Pensioner</option><option value="ofw">OFW</option>
-                                <option value="ofw_beneficiary">OFW beneficiary</option><option value="student">Student</option>
-                                <option value="unemployed_spouse_income">Unemployed (spouse's income)</option><option value="unemployed_other_income">Unemployed (other income)</option>
-                            </select>
-                        </div>
-                        <div class="field"><label for="pm-source-of-funds">Source of funds</label>
-                            <select id="pm-source-of-funds" required>
-                                <option value="commission">Commission</option><option value="salary">Salary</option>
-                                <option value="pension">Pension</option><option value="allowance">Allowance</option><option value="donation">Donation</option><option value="other">Other</option>
-                            </select>
-                        </div>
-                        <div class="field hidden" id="pm-source-other-field"><label for="pm-source-other">Other source of funds</label><input id="pm-source-other" maxlength="150"></div>
-                        <div class="field hidden" id="pm-source-salary-field"><label for="pm-source-salary">Employer name</label><input id="pm-source-salary" maxlength="150"></div>
-                        <div class="field"><label for="pm-person-tin">Representative TIN</label><input id="pm-person-tin" maxlength="40" required></div>
-                        <div class="field span-2"><label for="pm-person-address">Residential address</label><input id="pm-person-address" maxlength="200" required></div>
-                        <div class="field"><label for="pm-person-city">City / municipality</label><input id="pm-person-city" maxlength="100" required></div>
-                        <div class="field"><label for="pm-person-state">Province / region code</label><input id="pm-person-state" maxlength="100" placeholder="e.g. PH-MNL" required></div>
-                        <div class="field"><label for="pm-person-postal">Postal code</label><input id="pm-person-postal" maxlength="20" required></div>
-                    </div>
-
-                    <h4 style="margin-top: 22px;">Business details</h4>
-                    <div class="form-grid" style="margin-top: 12px;">
-                        <div class="field"><label for="pm-trade-name">Business / trade name</label><input id="pm-trade-name" maxlength="150" required></div>
-                        <div class="field"><label for="pm-business-type">Business type</label>
-                            <select id="pm-business-type" required>
-                                <option value="sole_proprietor">Sole proprietor</option><option value="individual">Individual</option>
-                                <option value="partnership">Partnership</option><option value="corporation">Corporation</option>
-                            </select>
-                        </div>
-                        <div class="field"><label for="pm-industry">Business MCC</label><input id="pm-industry" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="4-digit code" required><div class="field-help">Use the Merchant Category Code that matches your business.</div></div>
-                        <div class="field"><label for="pm-business-description">Business description</label><input id="pm-business-description" maxlength="500" required></div>
-                        <div class="field"><label for="pm-business-age">Business age</label>
-                            <select id="pm-business-age" required><option value="less_than_1_year">Less than 1 year</option><option value="between_1_and_2_years">1–2 years</option><option value="between_2_and_5_years">2–5 years</option><option value="greater_than_5_years">More than 5 years</option></select>
-                        </div>
-                        <div class="field"><label for="pm-business-size">Number of employees</label>
-                            <select id="pm-business-size" required><option value="less_than_10">Fewer than 10</option><option value="between_10_and_50">10–50</option><option value="between_51_and_250">51–250</option><option value="greater_than_250">More than 250</option></select>
-                        </div>
-                        <div class="field"><label for="pm-monthly-volume">Estimated monthly volume</label>
-                            <select id="pm-monthly-volume" required><option value="less_than_100K">Below PHP 100,000</option><option value="between_100K_and_300K">PHP 100,000–300,000</option><option value="between_300K_and_500K">PHP 300,000–500,000</option><option value="between_500K_and_1M">PHP 500,000–1,000,000</option><option value="between_1M_and_3M">PHP 1,000,000–3,000,000</option><option value="greater_than_3M">Above PHP 3,000,000</option></select>
-                        </div>
-                        <div class="field"><label for="pm-business-tin">Business TIN</label><input id="pm-business-tin" maxlength="40" required></div>
-                        <div class="field span-2"><label for="pm-business-address">Business address</label><input id="pm-business-address" maxlength="200" required></div>
-                        <div class="field"><label for="pm-business-city">City / municipality</label><input id="pm-business-city" maxlength="100" required></div>
-                        <div class="field"><label for="pm-business-state">Province / region code</label><input id="pm-business-state" maxlength="100" placeholder="e.g. PH-MNL" required></div>
-                        <div class="field"><label for="pm-business-postal">Postal code</label><input id="pm-business-postal" maxlength="20" required></div>
-                    </div>
-                    <div class="form-actions">
-                        <button class="btn-primary" id="profile-paymongo-activate" type="submit">Submit details and activate</button>
-                    </div>
-                </form>
+            <section class="form-card owner-only" id="profile-payment-info">
+                <h3><i class="fa-solid fa-wallet" style="color: var(--primary);"></i> Seller payments</h3>
+                <p class="field-help">Online buyer payments are processed through AgriTrace's configured Xendit account after you accept an order. You do not need to create or activate a linked payment account to accept orders. Seller payouts are handled separately.</p>
             </section>
 
             <section class="form-card" id="profile-products-card">

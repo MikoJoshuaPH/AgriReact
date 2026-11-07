@@ -651,6 +651,39 @@ p { line-height: 1.55; }
 .msg-input-area button:hover { background: var(--primary-hover); transform: scale(1.04); }
 
 /* Cart */
+.detail-order-panel {
+    display: grid;
+    gap: 16px;
+    padding: 18px;
+    background: var(--bg-main);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+}
+.detail-order-panel .field { margin: 0; }
+.detail-order-controls { display: flex; align-items: end; gap: 20px; }
+.detail-order-controls > .field { flex: 0 0 150px; }
+.detail-quantity-control { display: flex; align-items: center; gap: 8px; }
+.detail-quantity-control button {
+    flex: 0 0 40px;
+    height: 42px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--bg-hover);
+    color: var(--text-main);
+    font-size: 1.15rem;
+}
+.detail-quantity-control button:hover { border-color: var(--primary); }
+.detail-order-panel .detail-quantity-control input {
+    min-width: 0;
+    padding: 10px 6px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+.detail-order-summary { display: grid; gap: 3px; min-width: 0; color: var(--text-muted); font-size: 0.82rem; }
+.detail-order-summary strong { color: var(--primary); font-family: var(--font-display); font-size: 1.12rem; }
+.detail-order-actions { display: flex; gap: 10px; }
+.detail-order-actions button:first-child { flex: 1; }
+.detail-order-actions button:last-child { flex: 2; }
 .shopee-cart { max-width: 680px; width: 90%; padding: 0; overflow: hidden; }
 .shopee-header { background: var(--bg-main); padding: 16px 22px; color: var(--text-main); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); }
 .shopee-header h2 { font-size: 1.2rem; display: flex; align-items: center; gap: 10px; }
@@ -972,6 +1005,10 @@ input:focus-visible + .slider { box-shadow: 0 0 0 3px var(--focus-ring); }
     .shopee-footer { flex-direction: column; gap: 12px; align-items: stretch; padding: 12px; }
     .shopee-footer > div { justify-content: space-between; }
     .shopee-header { padding: 12px 14px; }
+    .detail-order-panel { padding: 14px; gap: 12px; }
+    .detail-order-controls { align-items: stretch; flex-direction: column; gap: 12px; }
+    .detail-order-controls > .field { flex: 1 1 auto; }
+    .detail-order-summary { padding: 10px 12px; background: var(--bg-surface); border-radius: var(--radius-sm); }
     .form-grid { grid-template-columns: 1fr; }
     .form-card { padding: 18px; }
     .profile-hero { padding: 18px; }
