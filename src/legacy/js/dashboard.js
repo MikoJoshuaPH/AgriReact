@@ -455,6 +455,39 @@ function switchPostTab(tab, btn) {
     btn.classList.add('active');
     document.getElementById('post-area-' + tab).classList.add('active');
 }
+function populateCategorySelect(selectId) {
+    const select = document.getElementById(selectId);
+    select.innerHTML = [
+        ...CATEGORIES.map((category) => `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`),
+        '<option value="__custom__">Other</option>'
+    ].join('');
+}
+function syncCustomCategoryField(selectId, inputId) {
+    const select = document.getElementById(selectId);
+    const input = document.getElementById(inputId);
+    const isCustom = select.value === '__custom__';
+    input.hidden = !isCustom;
+    input.required = isCustom;
+    if (!isCustom) input.value = '';
+}
+function setCategoryValue(selectId, inputId, category) {
+    const select = document.getElementById(selectId);
+    const input = document.getElementById(inputId);
+    if (CATEGORIES.includes(category)) {
+        select.value = category;
+        input.value = '';
+    } else {
+        select.value = '__custom__';
+        input.value = category;
+    }
+    syncCustomCategoryField(selectId, inputId);
+}
+function categoryValue(selectId, inputId) {
+    const select = document.getElementById(selectId);
+    return select.value === '__custom__'
+        ? document.getElementById(inputId).value.trim()
+        : select.value;
+}
 function openFilePicker(type) { document.getElementById('file-input-' + type).click(); }
 async function fileSelected(event, type) {
     const files = Array.from(event.target.files || []);
@@ -472,7 +505,7 @@ function resetPostForm() {
         document.getElementById(id).value = '';
     });
     document.getElementById('product-farm').value = '';
-    document.getElementById('product-category').value = CATEGORIES[0];
+    setCategoryValue('product-category', 'product-category-custom', CATEGORIES[0]);
     pendingUpload.video = null;
     pendingUpload.product = [];
     document.getElementById('video-upload-label').textContent = 'Upload from Device';
@@ -508,7 +541,9 @@ async function submitPost() {
         } else {
             const name = val('product-name');
             const farmId = Number(val('product-farm'));
+            const category = categoryValue('product-category', 'product-category-custom');
             if (!name) throw new Error('Enter the product name.');
+            if (!category) throw new Error('Enter a product category.');
             if (me.role === 'farmer' && !(farmId > 0)) throw new Error('Select a registered farm before listing this product.');
             const productFile = (pendingUpload.product || [])[0];
             const uploaded = productFile ? await uploadMedia(productFile) : null;
@@ -517,7 +552,7 @@ async function submitPost() {
                 body: {
                     product_draft: true,
                     product_name: name,
-                    category: val('product-category'),
+                    category,
                     farm_id: farmId,
                     description: val('product-description'),
                     image_url: uploaded ? uploaded.url : ''
@@ -697,7 +732,7 @@ async function openProductEdit(listingId) {
     }
     editingListingId = String(listing.listing_id);
     document.getElementById('edit-product-name').value = listing.product_name || '';
-    document.getElementById('edit-product-category').value = listing.category || CATEGORIES[0];
+    setCategoryValue('edit-product-category', 'edit-product-category-custom', listing.category || CATEGORIES[0]);
     document.getElementById('edit-product-description').value = listing.description || '';
     document.getElementById('edit-product-image').value = '';
     document.getElementById('edit-product-image-preview').src = mediaUrl(listing.image_url, DEFAULT_PRODUCT_IMG);
@@ -713,7 +748,7 @@ async function saveProductEdit() {
         return;
     }
     const productName = document.getElementById('edit-product-name').value.trim();
-    const category = document.getElementById('edit-product-category').value.trim();
+    const category = categoryValue('edit-product-category', 'edit-product-category-custom');
     if (!productName || !category) {
         toast('Enter a product name and category.', 'error');
         return;
@@ -3184,8 +3219,10 @@ async function initPage() {
     document.getElementById('post-avatar').src = avatarOf(me);
     document.getElementById('darkmode-toggle').checked = localStorage.getItem('theme') !== 'light';
     document.getElementById('language-select').value = localStorage.getItem('language') || 'en';
-    document.getElementById('product-category').innerHTML = CATEGORIES.map((c) => `<option value="${c}">${c}</option>`).join('');
-    document.getElementById('edit-product-category').innerHTML = CATEGORIES.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+    populateCategorySelect('product-category');
+    populateCategorySelect('edit-product-category');
+    listen(document.getElementById('product-category'), 'change', () => syncCustomCategoryField('product-category', 'product-category-custom'));
+    listen(document.getElementById('edit-product-category'), 'change', () => syncCustomCategoryField('edit-product-category', 'edit-product-category-custom'));
     listen(document.getElementById('edit-post-files'), 'change', previewEditPostFiles);
     listen(document.getElementById('edit-product-image'), 'change', (event) => {
         const file = event.target.files[0];

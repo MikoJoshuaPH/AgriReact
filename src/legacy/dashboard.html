@@ -504,10 +504,8 @@
                 <div class="wide"><label for="product-name">Product name</label><input type="text" id="product-name" placeholder="Fresh Mangoes" maxlength="150"></div>
                 <div><label for="product-farm">Registered farm</label><select id="product-farm" required><option value="">Select your farm</option></select></div>
                 <div><label for="product-category">Product category</label>
-                    <input id="product-category" list="product-category-options" value="Fruits" placeholder="Fruits, Vegetables, or your own category" required>
-                    <datalist id="product-category-options">
-                        <option value="Fruits"><option value="Vegetables"><option value="Meats"><option value="Grains"><option value="Dairy">
-                    </datalist>
+                    <select id="product-category" required></select>
+                    <input type="text" id="product-category-custom" class="category-custom-input" maxlength="100" placeholder="Enter a category" aria-label="Custom product category" hidden>
                 </div>
                 <div class="wide"><label for="product-description">Description</label><textarea id="product-description" placeholder="Describe your product..."></textarea></div>
                 <div class="file-upload-box" onclick="openFilePicker('product')" style="padding: 15px;">
@@ -610,8 +608,11 @@
                 <button class="close-btn" type="button" aria-label="Close product editor" onclick="closeModal('edit-product-modal')"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="field"><label for="edit-product-name">Product name</label><input id="edit-product-name" maxlength="150" required></div>
-            <div class="field"><label for="edit-product-category">Product category</label><input id="edit-product-category" list="edit-product-category-options" maxlength="100" required></div>
-            <datalist id="edit-product-category-options"><option value="Fruits"><option value="Vegetables"><option value="Meats"><option value="Grains"><option value="Dairy"></datalist>
+            <div class="field">
+                <label for="edit-product-category">Product category</label>
+                <select id="edit-product-category" required></select>
+                <input type="text" id="edit-product-category-custom" class="category-custom-input" maxlength="100" placeholder="Enter a category" aria-label="Custom product category" hidden>
+            </div>
             <div class="field"><label for="edit-product-description">Description</label><textarea id="edit-product-description"></textarea></div>
             <div class="field">
                 <label for="edit-product-image">Product image</label>
