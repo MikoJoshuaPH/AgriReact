@@ -2146,7 +2146,7 @@ function renderConversationList() {
         const unread = c.unread > 0;
         const ids = c.user_ids.join(',');
         return `<div class="msg-contact ${ids === activeContactUserIds.join(',') ? 'active' : ''} ${unread ? 'unread' : ''}" data-contact="${escapeHtml(ids)}">
-            <img src="${escapeHtml(mediaUrl(c.profile_pic, DEFAULT_AVATAR))}" alt="${escapeHtml(contactName(c))}">
+            <img src="${escapeHtml(mediaUrl(c.profile_pic, DEFAULT_AVATAR))}" onerror="this.onerror=null;this.src='${DEFAULT_AVATAR}'" alt="${escapeHtml(contactName(c))}">
             <div><h4>${escapeHtml(contactName(c))}</h4><p>${preview}</p></div>
             ${unread ? `<span class="unread-dot" title="${c.unread} unread message${c.unread === 1 ? '' : 's'}"></span>` : ''}
         </div>`;
@@ -2168,7 +2168,9 @@ async function selectContact(id, fallbackContact = null) {
     activeContactUserIds = contact.user_ids || requestedIds;
     activeContactId = String(contact.user_id);
     activeContactDetails = contact;
-    document.getElementById('chat-header-img').src = mediaUrl(contact?.profile_pic, DEFAULT_AVATAR);
+    const headerImage = document.getElementById('chat-header-img');
+    headerImage.onerror = () => { headerImage.onerror = null; headerImage.src = DEFAULT_AVATAR; };
+    headerImage.src = mediaUrl(contact?.profile_pic, DEFAULT_AVATAR);
     document.getElementById('chat-header-name').textContent = contactName(contact);
     document.getElementById('chat-header-status').innerHTML = '<i class="fa-solid fa-circle" style="color: var(--primary); font-size: 0.6rem;"></i> Direct message';
     document.getElementById('chat-history').innerHTML = '<div style="margin: auto; color: var(--text-muted); text-align: center;">Loading conversation...</div>';
@@ -2197,7 +2199,8 @@ async function selectContact(id, fallbackContact = null) {
     if (updatedContact) {
         activeContactDetails = updatedContact;
         activeContactId = String(updatedContact.user_id);
-        document.getElementById('chat-header-img').src = mediaUrl(updatedContact.profile_pic, DEFAULT_AVATAR);
+        headerImage.onerror = () => { headerImage.onerror = null; headerImage.src = DEFAULT_AVATAR; };
+        headerImage.src = mediaUrl(updatedContact.profile_pic, DEFAULT_AVATAR);
         document.getElementById('chat-header-name').textContent = contactName(updatedContact);
     }
     renderConversationList();
@@ -2209,7 +2212,7 @@ function renderChatHistory(messages) {
             const sent = String(m.sender_id) === String(me.id);
             const avatar = mediaUrl(m.sender_profile_pic, sent ? avatarOf(me) : DEFAULT_AVATAR);
             return `<div class="chat-message-row ${sent ? 'sent' : 'received'}">
-                <img src="${escapeHtml(avatar)}" alt="" class="chat-message-avatar">
+                <img src="${escapeHtml(avatar)}" onerror="this.onerror=null;this.src='${DEFAULT_AVATAR}'" alt="" class="chat-message-avatar">
                 <div class="msg-bubble ${sent ? 'sent' : 'received'}">${escapeHtml(m.body)}</div>
             </div>`;
         }).join('')

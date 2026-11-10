@@ -5,7 +5,7 @@
 
 const API_BASE = (window.AGRITRACE_API_BASE_URL || '/api').replace(/\/$/, '');
 const DEFAULT_AVATAR = '/default-avatar.jpg';
-const DEFAULT_PRODUCT_IMG = 'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=400&q=80';
+const DEFAULT_PRODUCT_IMG = '/default-product.svg';
 const CATEGORIES = ['Fruits', 'Vegetables', 'Meats', 'Grains', 'Dairy'];
 const SELLING_UNIT_LABELS = { piece: 'piece', kg: 'kg', bundle: 'bundle', pack: 'pack', sack: 'sack', box: 'box', dozen: 'dozen', set: 'set', liter: 'liter', other: 'unit' };
 // Sign-up choices map onto the roles the backend understands.
