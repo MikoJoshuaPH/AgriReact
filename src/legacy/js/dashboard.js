@@ -102,12 +102,19 @@ function postAuthor(p) {
     return name || p.username;
 }
 function postMediaItems(p) {
-    if (!p.media_url) return [];
+    const productImage = p.post_type === 'product' ? String(p.product_image || '').trim() : '';
+    const listingImage = productImage ? [{ url: productImage, type: 'image' }] : [];
+    if (!p.media_url) return listingImage;
+    let items;
     try {
         const parsed = JSON.parse(p.media_url);
-        if (Array.isArray(parsed)) return parsed.filter((item) => item && item.url);
+        if (Array.isArray(parsed)) items = parsed;
     } catch (error) { /* legacy single URL */ }
-    return [{ url: p.media_url, type: p.media_type || 'image' }];
+    if (!items) items = [{ url: p.media_url, type: p.media_type || 'image' }];
+    const validItems = items
+        .filter((item) => item && String(item.url || '').trim())
+        .map((item) => ({ ...item, url: String(item.url).trim() }));
+    return validItems.length ? validItems : listingImage;
 }
 function postCardHTML(p) {
     const isProduct = p.post_type === 'product';
