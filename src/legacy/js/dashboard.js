@@ -21,6 +21,7 @@ let activeReviewListingId = null;
 let activeSalesListingId = null;
 let activeReportPostId = null;
 let checkoutMap = null;
+let checkoutMapLoading = null;
 let checkoutMarker = null;
 let checkoutLocation = null;
 let checkoutAddressAutoFilled = false;
@@ -1120,11 +1121,12 @@ async function initializeCheckoutMap() {
         requestAnimationFrame(() => checkoutMap && checkoutMap.invalidateSize());
         return;
     }
+    if (checkoutMapLoading) return checkoutMapLoading;
     const hasSavedLocation = me && validCoordinates(me.latitude, me.longitude);
     const center = hasSavedLocation
         ? [Number(me.latitude), Number(me.longitude)]
         : [13.6218, 123.1948];
-    try {
+    checkoutMapLoading = (async () => {
         const { map, L } = await createMap('checkout-location-map', center[0], center[1], hasSavedLocation ? 14 : 6);
         checkoutMap = map;
         if (hasSavedLocation) {
@@ -1151,9 +1153,14 @@ async function initializeCheckoutMap() {
             await updateCheckoutLocationLabel(event.latlng.lat, event.latlng.lng);
         });
         requestAnimationFrame(() => map.invalidateSize());
+    })();
+    try {
+        await checkoutMapLoading;
     } catch (error) {
         document.getElementById('checkout-location-status').textContent = `Map unavailable: ${error.message}`;
         throw error;
+    } finally {
+        checkoutMapLoading = null;
     }
 }
 
@@ -1197,6 +1204,7 @@ function useCheckoutCurrentLocation() {
             if (!checkoutMap) await initializeCheckoutMap();
             if (!checkoutMarker) {
                 const { L } = await ensureLeaflet();
+                if (!checkoutMap) throw new Error('The delivery map is not ready. Please try again.');
                 checkoutMarker = L.marker([position.coords.latitude, position.coords.longitude], { draggable: true }).addTo(checkoutMap);
                 checkoutMarker.on('dragend', async (event) => {
                     const point = event.target.getLatLng();
@@ -3447,6 +3455,7 @@ function cleanupDashboardMaps() {
     if (farmerHubMap) farmerHubMap.remove();
     clearOrderLocationMaps();
     checkoutMap = null;
+    checkoutMapLoading = null;
     checkoutMarker = null;
     checkoutLocation = null;
     checkoutAddressAutoFilled = false;

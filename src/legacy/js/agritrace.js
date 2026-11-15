@@ -354,12 +354,23 @@ function ensureLeaflet() {
         const scriptLoading = window.L ? Promise.resolve(window.L) : new Promise((resolve, reject) => {
             const script = document.createElement('script');
             script.src = '/vendor/leaflet/leaflet.js';
-            script.onload = () => resolve(window.L);
+            script.onload = () => {
+                if (!window.L || typeof window.L.map !== 'function' || typeof window.L.marker !== 'function') {
+                    reject(new Error('The map library could not be initialized.'));
+                    return;
+                }
+                resolve(window.L);
+            };
             script.onerror = () => reject(new Error('The map could not be loaded.'));
             document.head.appendChild(script);
         });
         leafletLoading = Promise.all([scriptLoading, ensureLeafletStyles()])
-            .then(([L]) => L)
+            .then(([L]) => {
+                if (!L || typeof L.map !== 'function' || typeof L.marker !== 'function') {
+                    throw new Error('The map library could not be initialized.');
+                }
+                return L;
+            })
             .catch((error) => {
                 leafletLoading = null;
                 throw error;
