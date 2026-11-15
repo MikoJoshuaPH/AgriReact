@@ -2097,40 +2097,17 @@ function setMessageFilter(filter, button) {
 }
 function contactName(c) { return [c.first_name, c.last_name].filter(Boolean).join(' ') || c.username; }
 function contactSearchText(c) { return `${contactName(c)} ${c.username || ''}`.toLocaleLowerCase(); }
-function normalizedContactName(c) { return contactName(c).trim().replace(/\s+/g, ' ').toLocaleLowerCase(); }
 function conversationGroups() {
-    const groups = new Map();
-    const seenUserIds = new Set();
-    for (const contact of state.contacts) {
+    return state.contacts.map((contact) => {
         const userId = Number(contact.user_id);
-        if (seenUserIds.has(userId)) continue;
-        seenUserIds.add(userId);
-        const name = normalizedContactName(contact);
-        const key = name || `user:${contact.user_id}`;
-        if (!groups.has(key)) {
-            groups.set(key, {
-                ...contact,
-                user_id: userId,
-                user_ids: [],
-                contacts: [],
-                unread: 0
-            });
-        }
-        const group = groups.get(key);
-        group.user_ids.push(userId);
-        group.contacts.push(contact);
-        group.unread += Number(contact.unread) || 0;
-        if (String(contact.last_at || '') > String(group.last_at || '')) {
-            Object.assign(group, contact, {
-                user_id: userId,
-                user_ids: group.user_ids,
-                contacts: group.contacts,
-                unread: group.unread
-            });
-        }
-    }
-    for (const group of groups.values()) group.user_ids.sort((a, b) => a - b);
-    return [...groups.values()].sort((a, b) => String(b.last_at || '').localeCompare(String(a.last_at || '')));
+        return {
+            ...contact,
+            user_id: userId,
+            user_ids: [userId],
+            contacts: [contact],
+            unread: Number(contact.unread) || 0
+        };
+    }).sort((a, b) => String(b.last_at || '').localeCompare(String(a.last_at || '')));
 }
 function renderConversationList() {
     const q = (document.getElementById('msg-search')?.value || '').trim().toLowerCase();
@@ -2168,6 +2145,7 @@ async function selectContact(id, fallbackContact = null) {
     activeContactUserIds = contact.user_ids || requestedIds;
     activeContactId = String(contact.user_id);
     activeContactDetails = contact;
+    renderConversationList();
     const headerImage = document.getElementById('chat-header-img');
     headerImage.onerror = () => { headerImage.onerror = null; headerImage.src = DEFAULT_AVATAR; };
     headerImage.src = mediaUrl(contact?.profile_pic, DEFAULT_AVATAR);

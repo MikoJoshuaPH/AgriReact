@@ -22,7 +22,11 @@ function mediaUrl(value, fallback = '') {
     const url = String(value || '').trim();
     if (!url) return fallback;
     if (/^(https?:|data:|blob:)/i.test(url)) return url;
-    return url.startsWith('/') ? url : '/' + url;
+    const path = url.startsWith('/') ? url : '/' + url;
+    if (/^https?:\/\//i.test(API_BASE)) {
+        return new URL(path.slice(1), new URL('../', API_BASE)).href;
+    }
+    return path;
 }
 
 /* ---------- formatting helpers ---------- */
