@@ -1175,7 +1175,7 @@ async function searchCheckoutLocation() {
         if (!found) throw new Error('No matching place was found. Try a nearby landmark.');
         if (!checkoutMap) await initializeCheckoutMap();
         if (!checkoutMarker) {
-            const { L } = await ensureLeaflet();
+            const L = await ensureLeaflet();
             checkoutMarker = L.marker([found.lat, found.lng], { draggable: true }).addTo(checkoutMap);
             checkoutMarker.on('dragend', async (event) => {
                 const point = event.target.getLatLng();
@@ -1203,7 +1203,7 @@ function useCheckoutCurrentLocation() {
         try {
             if (!checkoutMap) await initializeCheckoutMap();
             if (!checkoutMarker) {
-                const { L } = await ensureLeaflet();
+                const L = await ensureLeaflet();
                 if (!checkoutMap) throw new Error('The delivery map is not ready. Please try again.');
                 checkoutMarker = L.marker([position.coords.latitude, position.coords.longitude], { draggable: true }).addTo(checkoutMap);
                 checkoutMarker.on('dragend', async (event) => {
