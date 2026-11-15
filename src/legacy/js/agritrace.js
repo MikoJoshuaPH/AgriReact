@@ -23,7 +23,7 @@ function mediaUrl(value, fallback = '') {
     if (!url) return fallback;
     if (/^(https?:|data:|blob:)/i.test(url)) return url;
     const path = url.startsWith('/') ? url : '/' + url;
-    if (/^https?:\/\//i.test(API_BASE)) {
+    if (path.startsWith('/uploads/') && /^https?:\/\//i.test(API_BASE)) {
         return new URL(path.slice(1), new URL('../', API_BASE)).href;
     }
     return path;

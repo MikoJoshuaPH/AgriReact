@@ -87,7 +87,7 @@ function recordImage(row, tabId) {
     }
     const image = row.profile_pic || row.image_url || mediaUrlValue || row.qr_url || row.qr_image_path;
     const fallback = tabId === 'accounts'
-        ? avatarOf(row)
+        ? DEFAULT_AVATAR
         : tabId === 'products' ? DEFAULT_PRODUCT_IMG : '';
     const source = image || fallback;
     const isQr = tabId === 'qrcodes';
@@ -99,7 +99,7 @@ function recordImage(row, tabId) {
         : tabId === 'logs' ? 'fa-clipboard-list'
         : 'fa-seedling';
     return `<div class="db-record-image${isQr ? ' qr-image' : ''}">
-        ${source ? `<img src="${escapeHtml(mediaUrl(source))}" alt="${escapeHtml(recordTitle(row, recordColumns[tabId] || []))}" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><i class="fa-solid ${icon}" hidden aria-hidden="true"></i>` : `<i class="fa-solid ${icon}" aria-hidden="true"></i>`}
+        ${source ? `<img src="${escapeHtml(mediaUrl(source))}" data-fallback="${tabId === 'accounts' ? escapeHtml(mediaUrl(fallback)) : ''}" alt="${escapeHtml(recordTitle(row, recordColumns[tabId] || []))}" onerror="if (!this.dataset.fallbackTried && this.dataset.fallback) { this.dataset.fallbackTried = 'true'; this.src = this.dataset.fallback; } else { this.hidden = true; this.nextElementSibling.hidden = false; }"><i class="fa-solid ${icon}" hidden aria-hidden="true"></i>` : `<i class="fa-solid ${icon}" aria-hidden="true"></i>`}
     </div>`;
 }
 function recordTitle(row, columns) {
@@ -327,20 +327,17 @@ async function loadAll(quiet = false) {
     }
     loadingAll = true;
     try {
-        await Promise.all([
-            api('/admin/database').then((db) => {
-                snapshot = db;
-                if (queues) renderAll();
-            }),
-            api('/admin/queues').then((q) => {
-                queues = q;
-                if (snapshot) renderAll();
-            }),
-            api('/admin/farmer-applications?status=pending').then((result) => {
-                queues.farmerApplications = result.data || [];
-                if (snapshot) renderAll();
-            })
+        const [db, queueData, applications] = await Promise.all([
+            api('/admin/database'),
+            api('/admin/queues'),
+            api('/admin/farmer-applications?status=pending')
         ]);
+        if (!Array.isArray(applications.data)) {
+            throw new Error('The farmer applications response was invalid.');
+        }
+        snapshot = db;
+        queues = { ...queueData, farmerApplications: applications.data };
+        renderAll();
         document.getElementById('db-live-status').textContent = `Live · updated ${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
     } catch (error) {
         document.getElementById('db-live-status').textContent = 'Live update failed · retrying';
