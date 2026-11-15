@@ -31,7 +31,6 @@ let farmerApplicationLoaded = false;
 let editPostPreviewUrls = [];
 let activeContactId = null;
 let activeContactDetails = null;
-let activeContactUserIds = [];
 let conversationRequestSequence = 0;
 let editingPostId = null;
 let messageFilter = 'all';
@@ -2111,8 +2110,6 @@ function conversationGroups() {
         return {
             ...contact,
             user_id: userId,
-            user_ids: [userId],
-            contacts: [contact],
             unread: Number(contact.unread) || 0
         };
     }).sort((a, b) => String(b.last_at || '').localeCompare(String(a.last_at || '')));
@@ -2120,7 +2117,7 @@ function conversationGroups() {
 function renderConversationList() {
     const q = (document.getElementById('msg-search')?.value || '').trim().toLowerCase();
     const list = conversationGroups().filter((group) => {
-        const searchableText = group.contacts.map(contactSearchText).join(' ');
+        const searchableText = contactSearchText(group);
         if (q && !q.split(/\s+/).every((term) => searchableText.includes(term))) return false;
         if (messageFilter === 'unread') return group.unread > 0;
         return true;
@@ -2129,8 +2126,8 @@ function renderConversationList() {
     listElement.innerHTML = list.length ? list.map((c) => {
         const preview = escapeHtml(c.last_body || '');
         const unread = c.unread > 0;
-        const ids = c.user_ids.join(',');
-        return `<div class="msg-contact ${ids === activeContactUserIds.join(',') ? 'active' : ''} ${unread ? 'unread' : ''}" data-contact="${escapeHtml(ids)}">
+        const id = String(c.user_id);
+        return `<div class="msg-contact ${id === activeContactId ? 'active' : ''} ${unread ? 'unread' : ''}" data-contact="${escapeHtml(id)}">
             <img src="${escapeHtml(mediaUrl(c.profile_pic, DEFAULT_AVATAR))}" onerror="this.onerror=null;this.src='${DEFAULT_AVATAR}'" alt="${escapeHtml(contactName(c))}">
             <div><h4>${escapeHtml(contactName(c))}</h4><p>${preview}</p></div>
             ${unread ? `<span class="unread-dot" title="${c.unread} unread message${c.unread === 1 ? '' : 's'}"></span>` : ''}
@@ -2138,19 +2135,14 @@ function renderConversationList() {
     }).join('') : `<p style="padding: 15px; color: var(--text-muted); font-size: 0.85rem;">${messageFilter === 'unread' ? 'No unread conversations.' : q ? 'No conversations found.' : 'No conversations yet.'}</p>`;
 }
 async function selectContact(id, fallbackContact = null) {
-    const requestedIds = (Array.isArray(id) ? id : String(id).split(','))
-        .map((value) => Number(value))
-        .filter((value) => Number.isSafeInteger(value) && value > 0);
-    const matchingContacts = conversationGroups().find((group) =>
-        group.user_ids.length === requestedIds.length
-        && group.user_ids.every((userId) => requestedIds.includes(userId))
-    );
-    const contact = matchingContacts || (activeContactDetails
-        && activeContactUserIds.length === requestedIds.length
-        && activeContactUserIds.every((userId) => requestedIds.includes(userId)) ? activeContactDetails : fallbackContact);
+    const requestedId = Number(id);
+    if (!Number.isSafeInteger(requestedId) || requestedId <= 0) return;
+    const matchingContact = conversationGroups().find((group) => group.user_id === requestedId);
+    const fallback = activeContactDetails && Number(activeContactDetails.user_id) === requestedId
+        ? activeContactDetails : fallbackContact;
+    const contact = matchingContact || (Number(fallback?.user_id) === requestedId ? fallback : null);
     if (!contact) return;
     const requestSequence = ++conversationRequestSequence;
-    activeContactUserIds = contact.user_ids || requestedIds;
     activeContactId = String(contact.user_id);
     activeContactDetails = contact;
     renderConversationList();
@@ -2161,13 +2153,19 @@ async function selectContact(id, fallbackContact = null) {
     document.getElementById('chat-header-status').innerHTML = '<i class="fa-solid fa-circle" style="color: var(--primary); font-size: 0.6rem;"></i> Direct message';
     document.getElementById('chat-history').innerHTML = '<div style="margin: auto; color: var(--text-muted); text-align: center;">Loading conversation...</div>';
     try {
-        const histories = await Promise.all(activeContactUserIds.map((userId) => api(`/messages/${userId}`)));
+        const history = await api(`/messages/${requestedId}`);
         if (requestSequence !== conversationRequestSequence) return;
-        const messages = new Map();
-        histories.flatMap((history) => history.data || []).forEach((message) => {
-            messages.set(String(message.message_id), message);
-        });
-        renderChatHistory([...messages.values()].sort((a, b) =>
+        const currentUserId = String(me.id);
+        const contactUserId = String(requestedId);
+        const receivedMessages = history.data || [];
+        const messages = receivedMessages.filter((message) =>
+            (String(message.sender_id) === currentUserId && String(message.receiver_id) === contactUserId)
+            || (String(message.sender_id) === contactUserId && String(message.receiver_id) === currentUserId)
+        );
+        if (messages.length !== receivedMessages.length) {
+            toast('Messages from outside this conversation were excluded.', 'error');
+        }
+        renderChatHistory(messages.sort((a, b) =>
             String(a.created_at).localeCompare(String(b.created_at))
             || Number(a.message_id) - Number(b.message_id)
         ));
@@ -2178,10 +2176,7 @@ async function selectContact(id, fallbackContact = null) {
     }
     await loadContacts();
     if (requestSequence !== conversationRequestSequence) return;
-    const updatedContact = conversationGroups().find((group) =>
-        group.user_ids.length === activeContactUserIds.length
-        && group.user_ids.every((userId) => activeContactUserIds.includes(userId))
-    );
+    const updatedContact = conversationGroups().find((group) => group.user_id === requestedId);
     if (updatedContact) {
         activeContactDetails = updatedContact;
         activeContactId = String(updatedContact.user_id);
@@ -2209,16 +2204,14 @@ async function openMessenger(contactId) {
     openModal('messenger-modal');
     await loadContacts();
     const activeContactExists = conversationGroups().some((contact) =>
-        contact.user_ids.length === activeContactUserIds.length
-        && contact.user_ids.every((userId) => activeContactUserIds.includes(userId))
+        contact.user_id === Number(activeContactId)
     );
-    const target = contactId || (activeContactExists ? activeContactUserIds.join(',') : null) || (conversationGroups()[0]?.user_ids.join(','));
+    const target = contactId || (activeContactExists ? activeContactId : null) || conversationGroups()[0]?.user_id;
     if (target) await selectContact(target);
     else {
         conversationRequestSequence++;
         activeContactId = null;
         activeContactDetails = null;
-        activeContactUserIds = [];
         document.getElementById('chat-header-img').src = DEFAULT_AVATAR;
         document.getElementById('chat-header-name').textContent = 'No conversations yet';
         document.getElementById('chat-header-status').textContent = '';
@@ -2227,11 +2220,9 @@ async function openMessenger(contactId) {
 }
 async function openConversation(id, name) {
     const farmer = state.farmers.find((item) => String(item.id) === String(id));
-    const existingGroup = conversationGroups().find((group) => group.user_ids.includes(Number(id)));
-    const contact = existingGroup || {
+    const existingContact = conversationGroups().find((group) => group.user_id === Number(id));
+    const contact = existingContact || {
         user_id: id,
-        user_ids: [Number(id)],
-        contacts: [],
         unread: 0,
         username: farmer?.username || name,
         first_name: farmer?.first_name || name,
@@ -2250,7 +2241,7 @@ async function sendMessage() {
     try {
         await api('/messages', { method: 'POST', body: { receiver_id: Number(activeContactId), body: text } });
         input.value = '';
-        await selectContact(activeContactUserIds);
+        await selectContact(activeContactId);
     } catch (error) { toast(error.message, 'error'); }
 }
 function handleMsgEnter(event) { if (event.key === 'Enter') sendMessage(); }
